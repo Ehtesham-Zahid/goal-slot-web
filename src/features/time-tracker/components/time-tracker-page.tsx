@@ -215,6 +215,7 @@ export function TimeTrackerPage() {
     return true
   })
 
+
   const startTimer = () => {
     const selectedTask = currentTaskId ? tasks.find((t: Task) => t.id === currentTaskId) : undefined
     const selectedTaskTitle = currentTaskId ? selectedTask?.title : currentTask.trim()
