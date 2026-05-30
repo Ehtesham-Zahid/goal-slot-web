@@ -149,7 +149,7 @@ export function TimeTrackerPage() {
       }
 
       return response.data as Task
-    } catch (error) {
+    } catch {
       toast.error('Failed to create task')
       return null
     }
@@ -236,7 +236,6 @@ export function TimeTrackerPage() {
         { taskId: selectedTask.id, data: { status: 'DOING' } },
         {
           onError: (error) => {
-            console.error('Failed to update task status:', error)
             toast.error('Could not update task status, but timer started successfully')
           },
         },

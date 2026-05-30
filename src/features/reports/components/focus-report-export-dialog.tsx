@@ -208,14 +208,14 @@ export function FocusReportExportDialog({ view, dateRange, trigger }: FocusRepor
               printWindow.document.write(html)
               printWindow.document.close()
             }
-          } catch (err) {
-            console.error('Error generating PDF content:', err)
+          } catch {
+            // Print window may be blocked by browser
           }
         }
 
         setOpen(false)
-      } catch (error) {
-        console.error('Export failed:', error)
+      } catch {
+        toast.error('Could not generate PDF. Please try again')
       }
     },
     [exportMutation, dateRange, exportViewType, exportTitle, exportNotes, includeTaskNotes],

@@ -400,8 +400,8 @@ export function NotesSidebar({ selectedNoteId, onSelectNote, className }: NotesS
       if (stored) {
         setExpandedIds(new Set(JSON.parse(stored)))
       }
-    } catch (e) {
-      console.error('Failed to parse expanded ids from local storage', e)
+    } catch {
+      toast.error('Failed to load saved data')
     }
   }, [])
 
