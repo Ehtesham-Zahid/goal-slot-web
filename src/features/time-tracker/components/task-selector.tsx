@@ -27,13 +27,16 @@ export function TaskSelector({
   variant = 'dark',
 }: TaskSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
+  const [searchValue, setSearchValue] = useState(() => currentTask || '')
   const [isCreating, setIsCreating] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const lastSyncedTaskIdRef = useRef<string | null>(null)
 
   // Filter tasks based on search
-  const filteredTasks = tasks.filter((task) => task.title.toLowerCase().includes(searchValue.toLowerCase()))
+  const filteredTasks = tasks.filter((task) =>
+    (task.title ?? '').toLowerCase().includes(searchValue.toLowerCase()),
+  )
 
   const groupedTasks = filteredTasks.reduce((groups: { label: string; tasks: Task[] }[], task) => {
     const label = task.goal?.title || 'No Goal'
@@ -61,26 +64,26 @@ export function TaskSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Only sync searchValue when a task is explicitly selected (currentTaskId changes)
+  // Sync searchValue only when currentTaskId genuinely changes — not on every
+  // tasks refetch from React Query, which would otherwise overwrite user input.
   useEffect(() => {
-    // Don't sync if input is currently focused (user is typing)
-    if (inputRef.current === document.activeElement) {
-      return
-    }
+    if (inputRef.current === document.activeElement) return
+    if (lastSyncedTaskIdRef.current === currentTaskId) return
 
     if (currentTaskId) {
-      // Sync when task is explicitly selected
       const task = tasks.find((t) => t.id === currentTaskId)
-      if (task && task.title !== searchValue) {
+      if (task) {
         setSearchValue(task.title)
+        lastSyncedTaskIdRef.current = currentTaskId
       }
-    } else if (!currentTaskId && !currentTask && searchValue) {
-      // Only clear if both are empty and input is not focused
-      if (inputRef.current !== document.activeElement) {
-        setSearchValue('')
-      }
+      // task not loaded yet — leave ref alone so we retry when tasks updates
+    } else if (!currentTask) {
+      setSearchValue('')
+      lastSyncedTaskIdRef.current = ''
+    } else {
+      lastSyncedTaskIdRef.current = ''
     }
-  }, [currentTaskId, tasks]) // Only depend on currentTaskId, not currentTask
+  }, [currentTaskId, tasks, currentTask])
 
   const handleSelectTask = (task: Task) => {
     onTaskIdChange(task.id)
@@ -119,7 +122,7 @@ export function TaskSelector({
     if (!isOpen) setIsOpen(true)
   }
 
-  const isDisabled = timerState !== 'STOPPED'
+  const isDisabled = timerState === 'RUNNING'
 
   return (
     <div className="relative mx-auto mb-4 max-w-lg text-left" ref={dropdownRef}>
