@@ -55,9 +55,9 @@ export function SearchableSelect({
     if (!q) return options
     return options.filter(
       (o) =>
-          o.label.toLowerCase().includes(q) ||
-          o.value.toLowerCase().includes(q) ||
-          o.hint?.toLowerCase().includes(q),
+        o.label.toLowerCase().includes(q) ||
+        o.value.toLowerCase().includes(q) ||
+        o.hint?.toLowerCase().includes(q),
     )
   }, [options, query])
 
