@@ -76,7 +76,6 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
     return categories.map((cat) => ({
       value: cat.value,
       label: cat.name,
-      hint: cat.value,
       color: cat.color || undefined,
     }))
   }, [categories])
