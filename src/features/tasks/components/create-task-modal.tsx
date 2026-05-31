@@ -28,7 +28,7 @@ const STATUS_OPTIONS = [
   { value: 'DOING', label: 'Doing' },
   { value: 'DONE', label: 'Done' },
 ]
-const NO_GOAL_VALUE = 'none'
+const NO_GOAL_VALUE = 'no_goal'
 
 export function CreateTaskModal({
   isOpen,
