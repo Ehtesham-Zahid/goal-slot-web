@@ -172,8 +172,8 @@ export function SearchableSelect({
                       onMouseEnter={() => setFocusedIndex(index)}
                       className={cn(
                         'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-zinc-50',
+                        isFocused && !isSel && 'bg-zinc-100',
                         isSel && 'bg-[#fff7d1]',
-                        isFocused && 'bg-zinc-100',
                       )}
                     >
                       {option.color && (
