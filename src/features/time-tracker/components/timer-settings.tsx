@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { useCategoriesQuery } from '@/features/categories'
 import { Goal } from '@/features/time-tracker/utils/types'
 import { useTimerStore } from '@/lib/use-timer-store'
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import { X, Clock } from 'lucide-react'
 
 interface TimerSettingsProps {
@@ -29,6 +31,25 @@ export function TimerSettings({
   onGoalIdChange,
 }: TimerSettingsProps) {
   const { data: categories = [] } = useCategoriesQuery()
+
+  const categoryOptions = useMemo(() => [
+    { value: 'no_category', label: 'No Category' },
+    ...categories.map((cat) => ({
+      value: cat.value,
+      label: cat.name,
+      color: cat.color,
+    }))
+  ], [categories])
+
+  const goalOptions = useMemo(() => [
+    { value: 'no_goal', label: 'No Goal' },
+    ...goals.map((goal) => ({
+      value: goal.id,
+      label: goal.title,
+      color: goal.color,
+    }))
+  ], [goals])
+
   const REMINDER_OPTIONS = [5, 10, 15, 20, 30, 45, 60]
   const { reminderInterval, setReminderInterval } = useTimerStore((state) => ({
     reminderInterval: state.reminderInterval || 15,
@@ -101,23 +122,14 @@ export function TimerSettings({
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
-            <Select
+            <SearchableSelect
               value={currentCategory || 'no_category'}
-              onValueChange={(val) => onCategoryChange(val === 'no_category' ? '' : val)}
+              onChange={(val) => onCategoryChange(val === 'no_category' ? '' : val)}
               disabled={timerState !== 'STOPPED'}
-            >
-              <SelectTrigger className={`${SELECT_TRIGGER_CLASS} pr-8`}>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no_category">No category</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={categoryOptions}
+              placeholder="Select category"
+              triggerClassName="pr-8"
+            />
           </div>
         </div>
 
@@ -141,23 +153,14 @@ export function TimerSettings({
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
-            <Select
+            <SearchableSelect
               value={currentGoalId || 'no_goal'}
-              onValueChange={(val) => onGoalIdChange(val === 'no_goal' ? '' : val)}
+              onChange={(val) => onGoalIdChange(val === 'no_goal' ? '' : val)}
               disabled={timerState !== 'STOPPED'}
-            >
-              <SelectTrigger className={`${SELECT_TRIGGER_CLASS} pr-8`}>
-                <SelectValue placeholder="Select goal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no_goal">No goal</SelectItem>
-                {goals.map((goal) => (
-                  <SelectItem key={goal.id} value={goal.id}>
-                    {goal.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={goalOptions}
+              placeholder="Select goal"
+              triggerClassName="pr-8"
+            />
           </div>
         </div>
       </div>
