@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useCategoriesQuery } from '@/features/categories'
 import { useCreateGoalMutation, useUpdateGoalMutation } from '@/features/goals/hooks/use-goals-mutations'
@@ -71,6 +71,14 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
   const deleteLabelMutation = useDeleteLabelMutation()
   const { data: categories = [] } = useCategoriesQuery()
   const { data: existingLabels = [] } = useLabelsQuery()
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((cat) => ({
+      value: cat.value,
+      label: cat.name,
+      color: cat.color || undefined,
+    }))
+  }, [categories])
 
   // Filter suggestions based on input - show all when empty (focused)
   const labelSuggestions = existingLabels
@@ -253,12 +261,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
                     value={form.category}
                     onChange={(value) => updateField('category', value)}
                     placeholder="Select category"
-                    options={categories.map((cat) => ({
-                      value: cat.value,
-                      label: cat.name,
-                      hint: cat.value,
-                      color: cat.color || undefined,
-                    }))}
+                    options={categoryOptions}
                   />
                 </div>
 

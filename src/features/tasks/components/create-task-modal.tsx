@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 import { CreateTaskForm, Goal, ScheduleBlock, Task } from '@/features/tasks/utils/types'
 
@@ -27,7 +28,7 @@ const STATUS_OPTIONS = [
   { value: 'DOING', label: 'Doing' },
   { value: 'DONE', label: 'Done' },
 ]
-const NO_GOAL_VALUE = 'none'
+const NO_GOAL_VALUE = 'no_goal'
 
 export function CreateTaskModal({
   isOpen,
@@ -41,6 +42,15 @@ export function CreateTaskModal({
   const [creating, setCreating] = useState(false)
   const [estimatedHours, setEstimatedHours] = useState('')
   const [status, setStatus] = useState('BACKLOG')
+
+  const goalOptions = useMemo(() => [
+    { value: NO_GOAL_VALUE, label: 'No Goal' },
+    ...goals.map((g) => ({
+      value: g.id,
+      label: g.title,
+      color: g.color,
+    }))
+  ], [goals])
 
   const [form, setForm] = useState<CreateTaskForm>({
     title: '',
@@ -178,22 +188,12 @@ export function CreateTaskModal({
             </div>
             <div>
               <Label className="mb-1.5 block text-[10px] tracking-wider">Goal</Label>
-              <Select
+              <SearchableSelect
                 value={form.goalId || NO_GOAL_VALUE}
-                onValueChange={(value) => setForm({ ...form, goalId: value === NO_GOAL_VALUE ? '' : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a goal" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_GOAL_VALUE}>No Goal</SelectItem>
-                  {goals.map((goal) => (
-                    <SelectItem key={goal.id} value={goal.id}>
-                      {goal.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => setForm({ ...form, goalId: value === NO_GOAL_VALUE ? '' : value })}
+                options={goalOptions}
+                placeholder="Select a goal"
+              />
             </div>
           </div>
 
