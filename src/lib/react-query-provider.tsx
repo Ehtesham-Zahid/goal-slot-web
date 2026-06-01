@@ -24,7 +24,7 @@ function QuerySyncInitializer() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return
 
     const channel = new BroadcastChannel('goalslot-sync')
 

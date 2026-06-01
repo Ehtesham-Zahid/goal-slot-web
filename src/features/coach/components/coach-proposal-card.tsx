@@ -448,12 +448,14 @@ export function CoachProposalCard({ block, sourceMessageId }: CoachProposalCardP
       ])
 
       // Broadcast sync event to other open tabs
-      try {
-        const channel = new BroadcastChannel('goalslot-sync')
-        channel.postMessage({ type: 'COACH_PROPOSAL_APPLIED' })
-        channel.close()
-      } catch (e) {
-        console.error('Failed to broadcast sync event', e)
+      if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+        try {
+          const channel = new BroadcastChannel('goalslot-sync')
+          channel.postMessage({ type: 'COACH_PROPOSAL_APPLIED' })
+          channel.close()
+        } catch (e) {
+          console.error('Failed to broadcast sync event', e)
+        }
       }
     } catch (err) {
       const m = err instanceof Error ? err.message : 'Could not apply proposal'
