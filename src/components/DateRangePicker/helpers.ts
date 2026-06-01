@@ -11,9 +11,12 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
-  { name: 'last7', label: 'Last week' },
+  { name: 'today', label: 'Today' },
+  { name: 'yesterday', label: 'Yesterday' },
+  { name: 'last7', label: 'Last 7 days' },
   { name: 'thisMonth', label: 'This month' },
-  { name: 'last30', label: 'Last month' },
+  { name: 'last30', label: 'Last 30 days' },
+  { name: 'lastMonth', label: 'Last month' },
   { name: 'last3Months', label: 'Last 3 months' },
   { name: 'last6Months', label: 'Last 6 months' },
   { name: 'last365', label: 'Last year' },
@@ -90,6 +93,13 @@ export const getPresetRange = (name: string): InternalRange => {
   const end = normalizeDate(new Date(today))
 
   switch (name) {
+    case 'today':
+      // start = end = today
+      break
+    case 'yesterday':
+      start.setDate(start.getDate() - 1)
+      end.setDate(end.getDate() - 1)
+      break
     case 'last7':
       start.setDate(start.getDate() - 6)
       break
@@ -99,6 +109,18 @@ export const getPresetRange = (name: string): InternalRange => {
     case 'last30':
       start.setDate(start.getDate() - 29)
       break
+    case 'lastMonth': {
+      // The whole previous calendar month — e.g. on June 14, this is
+      // May 1 through May 31. Different from `last30` which is a
+      // rolling 30-day window ending today; keeping both as separate
+      // presets because the two semantics often diverge by a day or
+      // two and users mean specific things by each.
+      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      const last = new Date(today.getFullYear(), today.getMonth(), 0)
+      start.setTime(normalizeDate(first).getTime())
+      end.setTime(normalizeDate(last).getTime())
+      break
+    }
     case 'last3Months':
       start.setMonth(start.getMonth() - 3)
       break
