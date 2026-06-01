@@ -7,8 +7,9 @@ import { Note, CreateNoteDto, UpdateNoteDto } from '../utils/types'
 
 // Query key for notes
 export const NOTES_QUERY_KEY = ['notes']
+export const SHARED_NOTES_QUERY_KEY = ['notes', 'shared-with-me']
 
-// Fetch all notes
+// Fetch all notes owned by the current user
 export function useNotesQuery() {
   return useQuery({
     queryKey: NOTES_QUERY_KEY,
@@ -19,16 +20,49 @@ export function useNotesQuery() {
   })
 }
 
-// Fetch single note
+// Fetch the single-note response (owner OR share recipient). Returns
+// { note, readOnly }; readOnly is true for share recipients.
 export function useNoteQuery(id: string | null) {
   return useQuery({
     queryKey: [...NOTES_QUERY_KEY, id],
     queryFn: async () => {
       if (!id) return null
       const { data } = await notesApi.getOne(id)
-      return data as Note
+      return data as { note: Note; readOnly: boolean }
     },
     enabled: !!id,
+  })
+}
+
+// Notes shared with the current user. Each entry carries the note
+// metadata + owner info so the sidebar can show "shared by <name>".
+export interface SharedNoteSummary {
+  shareId: string
+  note: {
+    id: string
+    title: string
+    icon: string | null
+    color: string | null
+    updatedAt: string
+  }
+  owner: {
+    id: string
+    name: string
+    email: string
+    avatar: string | null
+  }
+  acceptedAt: string | null
+  createdAt: string
+  permission: string
+}
+
+export function useSharedNotesQuery() {
+  return useQuery({
+    queryKey: SHARED_NOTES_QUERY_KEY,
+    queryFn: async () => {
+      const { data } = await notesApi.sharedWithMe()
+      return data as SharedNoteSummary[]
+    },
   })
 }
 

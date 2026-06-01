@@ -875,4 +875,17 @@ export const notesApi = {
   ) => api.put(`/notes/${id}`, data),
   delete: (id: string) => api.delete(`/notes/${id}`),
   reorder: (data: { noteId: string; parentId: string | null; order: number }[]) => api.put('/notes/reorder', data),
+
+  // Sharing
+  sharedWithMe: () => api.get('/notes/shared-with-me'),
+  getShareState: (id: string) => api.get(`/notes/${id}/share`),
+  enablePublicLink: (id: string) => api.post(`/notes/${id}/share/public-link`),
+  revokePublicLink: (id: string) => api.delete(`/notes/${id}/share/public-link`),
+  invite: (id: string, email: string) => api.post(`/notes/${id}/share/invite`, { email }),
+  revokeInvite: (id: string, shareId: string) => api.delete(`/notes/${id}/share/invite/${shareId}`),
+}
+
+// Public (unauthenticated) endpoint for shared notes via token.
+export const publicNotesApi = {
+  getByToken: (token: string) => api.get(`/public/notes/${token}`),
 }
