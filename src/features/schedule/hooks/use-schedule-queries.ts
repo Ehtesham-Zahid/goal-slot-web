@@ -4,5 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 export function useWeeklySchedule() {
   return useQuery({
     ...scheduleQueries.weekly(),
+    refetchInterval: 30000,
   })
 }

@@ -23,6 +23,7 @@ export function useTasks() {
       const res = await scheduleApi.getAll()
       return res.data
     },
+    refetchInterval: 30000,
   })
 
   const goalsQuery = useQuery({
@@ -31,6 +32,7 @@ export function useTasks() {
       const res = await goalsApi.getAll({ status: goalStatus })
       return res.data
     },
+    refetchInterval: 30000,
   })
 
   return {
