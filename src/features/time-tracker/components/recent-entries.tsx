@@ -1,16 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 
 import { EditTimeEntryModal } from '@/features/time-tracker/components/edit-time-entry-modal'
 import { useDeleteTimeEntry } from '@/features/time-tracker/hooks/use-time-tracker-mutations'
 import { TimeEntry } from '@/features/time-tracker/utils/types'
+import { useGoalsQuery } from '@/features/goals/hooks/use-goals-queries'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { CalendarRange, Clock, History, Pencil, Target, Trash2 } from 'lucide-react'
+import { CalendarRange, Clock, History, Pencil, Search, Target, Trash2, X } from 'lucide-react'
 
 import { timeEntriesApi } from '@/lib/api'
 import { formatDate, formatDuration } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { GoalSlotSpinner } from '@/components/goalslot-logo'
+import DateRangePicker from '@/components/DateRangePicker'
+import type { DateRangeValue } from '@/components/DateRangePicker/types'
+import { SearchableSelect } from '@/components/ui/searchable-select'
+
+const NO_GOAL_FILTER = '__NO_GOAL__'
 
 export function RecentEntries() {
   const deleteEntry = useDeleteTimeEntry()
@@ -18,17 +25,58 @@ export function RecentEntries() {
   const [entryToEdit, setEntryToEdit] = useState<TimeEntry | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  // Date range is owned by the DateRangePicker as a { from, to } pair
+  // of YYYY-MM-DD strings; we keep separate startDate/endDate locals
+  // because the backend query expects them as flat strings.
+  const [dateRangeValue, setDateRangeValue] = useState<DateRangeValue>({ from: undefined, to: undefined })
+  const startDate = dateRangeValue.from ?? ''
+  const endDate = dateRangeValue.to ?? ''
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [goalFilter, setGoalFilter] = useState<string>('')
+
+  const { data: goals = [] } = useGoalsQuery()
+
+  // Searchable goal dropdown options. The "All goals" sentinel uses
+  // empty string to match the existing "no filter" state, and the
+  // explicit "No goal" option uses the same sentinel the API recognises.
+  const goalOptions = useMemo(
+    () => [
+      { value: '', label: 'All goals' },
+      { value: NO_GOAL_FILTER, label: 'No goal' },
+      ...(goals as any[]).map((g) => ({
+        value: g.id,
+        label: g.title,
+        color: g.color,
+      })),
+    ],
+    [goals],
+  )
+
+  // Debounce the search input so we don't fire a request per keystroke.
+  // 300ms is long enough to merge a fast typist's burst into one query
+  // and short enough to feel live.
+  useEffect(() => {
+    const handle = setTimeout(() => setSearch(searchInput.trim()), 300)
+    return () => clearTimeout(handle)
+  }, [searchInput])
+
+  // Any filter change should reset back to page 1, otherwise users land
+  // on an empty page-5 of a 2-page result and think the search broke.
+  useEffect(() => {
+    setPage(1)
+  }, [search, goalFilter, startDate, endDate])
 
   const recentQuery = useQuery({
-    queryKey: ['time-tracker', 'recent-entries', 'paged', page, pageSize, startDate, endDate],
+    queryKey: ['time-tracker', 'recent-entries', 'paged', page, pageSize, startDate, endDate, search, goalFilter],
     queryFn: async () => {
       const res = await timeEntriesApi.getRecent({
         page,
         pageSize,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        search: search || undefined,
+        goalId: goalFilter || undefined,
       })
 
       const data = res.data as any
@@ -62,7 +110,15 @@ export function RecentEntries() {
   const showingFrom = total === 0 ? 0 : (page - 1) * pageSize + 1
   const showingTo = Math.min(page * pageSize, total)
 
-  const hasFilters = !!(startDate || endDate)
+  const hasFilters = !!(startDate || endDate || search || goalFilter)
+
+  const clearAllFilters = () => {
+    setDateRangeValue({ from: undefined, to: undefined })
+    setSearchInput('')
+    setSearch('')
+    setGoalFilter('')
+    setPage(1)
+  }
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -73,39 +129,63 @@ export function RecentEntries() {
       </h2>
 
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 bg-white p-3 text-xs sm:text-sm">
-        <div className="flex items-center gap-1">
-          <span className="font-mono uppercase text-gray-700">From</span>
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
           <input
-            type="date"
-            className="border border-zinc-200 px-2 py-1"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value)
-              setPage(1)
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && searchInput) {
+                e.preventDefault()
+                setSearchInput('')
+              }
             }}
+            placeholder="Search task name or notes..."
+            className="h-9 w-full rounded-md border border-zinc-200 bg-white pl-8 pr-7 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#f2cc0d] focus:outline-none focus:ring-1 focus:ring-[#f2cc0d]"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput('')}
+              title="Clear search"
+              aria-label="Clear search"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Searchable goal dropdown — handles long goal lists cleanly
+            because typing narrows the choices. Native <select> grew
+            unmanageable once power users had 20+ goals. */}
+        <div className="min-w-[180px]">
+          <SearchableSelect
+            value={goalFilter}
+            onChange={setGoalFilter}
+            options={goalOptions}
+            placeholder="All goals"
+            triggerClassName="h-9 text-xs"
           />
         </div>
-        <div className="flex items-center gap-1">
-          <span className="font-mono uppercase text-gray-700">To</span>
-          <input
-            type="date"
-            className="border border-zinc-200 px-2 py-1"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value)
-              setPage(1)
-            }}
-          />
-        </div>
+
+        {/* Calendar-style range picker with the same preset chips
+            (Last week, This month, Last 3 months, etc.) used on the
+            reports filter, plus a free-form two-month calendar for
+            anything outside those presets. */}
+        <DateRangePicker
+          value={dateRangeValue}
+          onChange={setDateRangeValue}
+          allowClearing
+          align="end"
+        />
+
         <button
           type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white text-zinc-900 text-sm font-semibold px-4 py-2 transition-colors hover:bg-zinc-50 disabled:opacity-50 px-3 py-1 text-xs"
-          onClick={() => {
-            setStartDate('')
-            setEndDate('')
-            setPage(1)
-          }}
-          disabled={(!startDate && !endDate) || recentQuery.isFetching}
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-900 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={clearAllFilters}
+          disabled={!hasFilters || recentQuery.isFetching}
         >
           Clear filters
         </button>
@@ -127,12 +207,8 @@ export function RecentEntries() {
           {hasFilters && (
             <button
               type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 text-white text-sm font-semibold px-4 py-2 transition-colors hover:bg-zinc-800 disabled:opacity-50 mt-4 px-4 py-2 text-xs"
-              onClick={() => {
-                setStartDate('')
-                setEndDate('')
-                setPage(1)
-              }}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              onClick={clearAllFilters}
             >
               Clear Filters
             </button>
@@ -152,7 +228,7 @@ export function RecentEntries() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white text-zinc-900 text-sm font-semibold px-4 py-2 transition-colors hover:bg-zinc-50 disabled:opacity-50 px-3 py-1 text-xs"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 px-4 py-1 py-2 text-sm text-xs font-semibold text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50"
                 onClick={() => handlePageChange('prev')}
                 disabled={page === 1 || recentQuery.isFetching}
               >
@@ -160,7 +236,7 @@ export function RecentEntries() {
               </button>
               <button
                 type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white text-zinc-900 text-sm font-semibold px-4 py-2 transition-colors hover:bg-zinc-50 disabled:opacity-50 px-3 py-1 text-xs"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 px-4 py-1 py-2 text-sm text-xs font-semibold text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50"
                 onClick={() => handlePageChange('next')}
                 disabled={!hasNext || recentQuery.isFetching}
               >
@@ -198,7 +274,17 @@ export function RecentEntries() {
                 style={{ backgroundColor: entry.goal?.color || '#f2cc0d' }}
               />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold sm:text-base">{entry.taskName}</div>
+                {entry.taskId ? (
+                  <Link
+                    href={`/dashboard/tasks?taskId=${entry.taskId}`}
+                    title={`Open task "${entry.taskName}"`}
+                    className="block truncate text-sm font-bold underline-offset-2 hover:text-[#8a7307] hover:underline sm:text-base"
+                  >
+                    {entry.taskName}
+                  </Link>
+                ) : (
+                  <div className="truncate text-sm font-bold sm:text-base">{entry.taskName}</div>
+                )}
                 <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs text-gray-500">
                   {entry.goal && (
                     <>

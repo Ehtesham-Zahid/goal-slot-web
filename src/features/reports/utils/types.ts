@@ -191,6 +191,10 @@ export interface DayByTaskEntry {
   goalColor: string | null
   totalMinutes: number
   totalFormatted: string
+  // > 1 when the same linked task (or same free-form name) was logged
+  // multiple times on this day. Surfaced in the UI so users can spot
+  // unintentional duplicates without diving into the Detailed report.
+  entryCount?: number
 }
 
 export interface DayByTaskBreakdown {

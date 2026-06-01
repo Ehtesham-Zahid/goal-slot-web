@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { Check, Copy, Download, Link as LinkIcon, MoreHorizontal, Plus, Star, StarOff, Trash2 } from 'lucide-react'
+import { Check, Copy, Download, Eye, Link as LinkIcon, MoreHorizontal, Plus, Share2, Star, StarOff, Trash2 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -11,6 +11,7 @@ import { TiptapEditor } from '@/components/tiptap-editor'
 
 import { useDeleteNoteMutation, useUpdateNoteMutation } from '../hooks/use-notes'
 import { Note, NOTE_COLORS, NOTE_ICONS } from '../utils/types'
+import { ShareNoteDialog } from './share-note-dialog'
 
 // Convert old block-based JSON content to HTML
 function convertOldContentToHtml(content: string): string {
@@ -104,15 +105,23 @@ function useDebounce<T extends (...args: any[]) => void>(callback: T, delay: num
 interface NoteEditorProps {
   note: Note
   onDelete?: () => void
+  // True when the current user is a share recipient, not the owner.
+  // Disables all save mutations (title, content, icon, color, favorite,
+  // delete) and hides owner-only controls (Share, more menu, delete).
+  readOnly?: boolean
+  // Owner metadata shown above the editor when readOnly is true so the
+  // recipient sees who shared the note with them.
+  sharedBy?: { name: string; email: string; avatar?: string | null } | null
 }
 
-export function NoteEditor({ note, onDelete }: NoteEditorProps) {
+export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }: NoteEditorProps) {
   const updateMutation = useUpdateNoteMutation()
   const deleteMutation = useDeleteNoteMutation()
   const [title, setTitle] = useState(note.title)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [copySuccess, setCopySuccess] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const isInitialized = useRef(false)
@@ -261,39 +270,51 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
       <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-2 py-2 md:px-4 md:py-3">
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
           {/* Icon picker — empty by default. Shows a faint outlined + so
-              the user can still pick an icon, but no 📄 fallback noise. */}
-          <Popover open={showIconPicker} onOpenChange={setShowIconPicker}>
-            <PopoverTrigger asChild>
-              <button
-                title={note.icon ? 'Change icon' : 'Add an icon'}
-                aria-label={note.icon ? 'Change icon' : 'Add an icon'}
-                className={cn(
-                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xl transition-colors md:h-10 md:w-10 md:text-2xl',
-                  note.icon
-                    ? 'border-zinc-200 bg-card hover:bg-muted'
-                    : 'border-dashed border-zinc-200 bg-transparent text-zinc-400 hover:border-zinc-300 hover:text-zinc-600',
-                )}
+              the user can still pick an icon, but no 📄 fallback noise.
+              For read-only recipients, renders as a static badge. */}
+          {readOnly ? (
+            note.icon ? (
+              <span
+                aria-hidden
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-card text-xl md:h-10 md:w-10 md:text-2xl"
               >
-                {note.icon ?? <Plus className="h-4 w-4" />}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-2" align="start">
-              <div className="grid grid-cols-8 gap-1">
-                {NOTE_ICONS.map((icon) => (
-                  <button
-                    key={icon}
-                    onClick={() => handleIconChange(icon)}
-                    className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded text-lg hover:bg-muted',
-                      note.icon === icon && 'bg-primary text-primary-foreground',
-                    )}
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+                {note.icon}
+              </span>
+            ) : null
+          ) : (
+            <Popover open={showIconPicker} onOpenChange={setShowIconPicker}>
+              <PopoverTrigger asChild>
+                <button
+                  title={note.icon ? 'Change icon' : 'Add an icon'}
+                  aria-label={note.icon ? 'Change icon' : 'Add an icon'}
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xl transition-colors md:h-10 md:w-10 md:text-2xl',
+                    note.icon
+                      ? 'border-zinc-200 bg-card hover:bg-muted'
+                      : 'border-dashed border-zinc-200 bg-transparent text-zinc-400 hover:border-zinc-300 hover:text-zinc-600',
+                  )}
+                >
+                  {note.icon ?? <Plus className="h-4 w-4" />}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <div className="grid grid-cols-8 gap-1">
+                  {NOTE_ICONS.map((icon) => (
+                    <button
+                      key={icon}
+                      onClick={() => handleIconChange(icon)}
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded text-lg hover:bg-muted',
+                        note.icon === icon && 'bg-primary text-primary-foreground',
+                      )}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
           {/* Title input */}
           <input
@@ -301,6 +322,7 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
             value={title}
             onChange={handleTitleChange}
             placeholder="Untitled"
+            readOnly={readOnly}
             className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none placeholder:text-muted-foreground md:text-xl"
           />
         </div>
@@ -314,8 +336,32 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
             </div>
           )}
 
-          {/* Favorite button */}
-          <button
+          {/* Share button — owner only. Read-only recipients see no Share
+              control because they have no authority to grant access. */}
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setShowShare(true)}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-card px-2.5 text-xs font-medium transition-colors hover:bg-muted md:h-9"
+              title="Share this note"
+              aria-label="Share this note"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+          )}
+
+          {/* Read-only badge for share recipients */}
+          {readOnly && (
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-zinc-100 px-2 text-[11px] font-medium text-zinc-600 md:h-9">
+              <Eye className="h-3 w-3" />
+              View only
+            </span>
+          )}
+
+          {/* Favorite button — owner only since the favorite flag lives
+              on the owner's record, not the share. */}
+          {!readOnly && <button
             onClick={handleToggleFavorite}
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 transition-colors md:h-9 md:w-9',
@@ -330,10 +376,10 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
             ) : (
               <StarOff className="h-3.5 w-3.5 md:h-4 md:w-4" />
             )}
-          </button>
+          </button>}
 
-          {/* Color picker */}
-          <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
+          {/* Color picker — owner only */}
+          {!readOnly && <Popover open={showColorPicker} onOpenChange={setShowColorPicker}>
             <PopoverTrigger asChild>
               <button
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-card transition-colors hover:bg-muted md:h-9 md:w-9"
@@ -361,10 +407,10 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
                 ))}
               </div>
             </PopoverContent>
-          </Popover>
+          </Popover>}
 
-          {/* More options */}
-          <Popover open={showMenu} onOpenChange={setShowMenu}>
+          {/* More options — owner only (it contains the destructive delete) */}
+          {!readOnly && <Popover open={showMenu} onOpenChange={setShowMenu}>
             <PopoverTrigger asChild>
               <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-card transition-colors hover:bg-muted md:h-9 md:w-9">
                 <MoreHorizontal className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -404,9 +450,21 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
                 Delete note
               </button>
             </PopoverContent>
-          </Popover>
+          </Popover>}
         </div>
       </div>
+
+      {/* "Shared by" strip — only visible for share recipients so it's
+          immediately obvious whose note they're reading. */}
+      {readOnly && sharedBy && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[11px] text-zinc-600">
+          <Eye className="h-3 w-3 text-zinc-400" />
+          <span>
+            Shared with you by <span className="font-semibold text-zinc-900">{sharedBy.name}</span>
+            <span className="text-zinc-400"> ({sharedBy.email})</span>
+          </span>
+        </div>
+      )}
 
       {/* Content - Tiptap Editor */}
       <div className="min-h-0 flex-1 overflow-hidden">
@@ -414,8 +472,9 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
           <TiptapEditor
             key={note.id}
             content={editorContent}
-            onChange={handleContentChange}
-            placeholder="Start typing... Use '/' for commands"
+            onChange={readOnly ? undefined : handleContentChange}
+            editable={!readOnly}
+            placeholder={readOnly ? '' : "Start typing... Use '/' for commands"}
             className="h-full"
           />
         </div>
@@ -438,6 +497,11 @@ export function NoteEditor({ note, onDelete }: NoteEditorProps) {
         variant="destructive"
         isLoading={deleteMutation.isPending}
       />
+
+      {/* Share Dialog. Mounted only for owners. */}
+      {!readOnly && (
+        <ShareNoteDialog note={note} open={showShare} onClose={() => setShowShare(false)} />
+      )}
     </div>
   )
 }

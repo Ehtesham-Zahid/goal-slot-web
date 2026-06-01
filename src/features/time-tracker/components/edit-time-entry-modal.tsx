@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 import { useGoalsQuery } from '@/features/goals/hooks/use-goals-queries'
 import { useUpdateTimeEntry } from '@/features/time-tracker/hooks/use-time-tracker-mutations'
@@ -29,6 +30,15 @@ export function EditTimeEntryModal({ isOpen, onClose, entry }: EditTimeEntryModa
 
   const updateEntry = useUpdateTimeEntry()
   const { data: goals = [] } = useGoalsQuery()
+
+  const goalOptions = useMemo(() => [
+    { value: 'no_goal', label: 'No Goal' },
+    ...goals.map((goal: any) => ({
+      value: goal.id,
+      label: goal.title,
+      color: goal.color,
+    }))
+  ], [goals])
 
   // Initialize form when entry changes
   useEffect(() => {
@@ -180,22 +190,12 @@ export function EditTimeEntryModal({ isOpen, onClose, entry }: EditTimeEntryModa
 
           <div>
             <Label className="mb-1.5 block text-[10px] tracking-wider">Goal</Label>
-            <Select value={goalId || 'no_goal'} onValueChange={(value) => setGoalId(value === 'no_goal' ? '' : value)}>
-              <SelectTrigger className={cn(selectedGoal && 'border-l-4')} style={selectedGoal ? { borderLeftColor: selectedGoal.color } : undefined}>
-                <SelectValue placeholder="Select goal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no_goal">No Goal</SelectItem>
-                {goals.map((goal: any) => (
-                  <SelectItem key={goal.id} value={goal.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: goal.color }} />
-                      {goal.title}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={goalId || 'no_goal'}
+              onChange={(value) => setGoalId(value === 'no_goal' ? '' : value)}
+              options={goalOptions}
+              placeholder="Select goal"
+            />
           </div>
         </form>
 

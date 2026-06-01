@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 import { useCategoriesQuery } from '@/features/categories'
 import { useCreateTimeEntry } from '@/features/time-tracker/hooks/use-time-tracker-mutations'
@@ -45,6 +46,23 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
   const createEntry = useCreateTimeEntry()
   const queryClient = useQueryClient()
   const { data: categories = [] } = useCategoriesQuery()
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((cat) => ({
+      value: cat.value,
+      label: cat.name,
+      color: cat.color,
+    }))
+  }, [categories])
+
+  const goalOptions = useMemo(() => [
+    { value: 'no_goal', label: 'No Goal' },
+    ...goals.map((goal) => ({
+      value: goal.id,
+      label: goal.title,
+      color: goal.color,
+    }))
+  ], [goals])
 
   const orderedTasks = sortTasksBySelection(tasks, goalId || undefined, category || undefined)
 
@@ -244,9 +262,9 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
               Category
               {taskId && <span className="text-[10px] font-normal normal-case tracking-normal text-zinc-400">(from task)</span>}
             </Label>
-            <Select
+            <SearchableSelect
               value={category}
-              onValueChange={(value) => {
+              onChange={(value) => {
                 if (taskId) return
                 setUserOverride(true)
                 setCategory(value)
@@ -256,18 +274,9 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
                 // from the (possibly multiple) DOING tasks for the goal.
               }}
               disabled={!!taskId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={categoryOptions}
+              placeholder="Select category"
+            />
           </div>
 
           <div>
@@ -275,9 +284,9 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
               Link to Goal
               {taskId && goalId && <span className="text-[10px] font-normal normal-case tracking-normal text-zinc-400">(from task)</span>}
             </Label>
-            <Select
+            <SearchableSelect
               value={goalId || 'no_goal'}
-              onValueChange={(value) => {
+              onChange={(value) => {
                 if (taskId) return
                 setUserOverride(true)
                 const normalized = value === 'no_goal' ? '' : value
@@ -290,19 +299,9 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
                 // from the (possibly multiple) DOING tasks for the goal.
               }}
               disabled={!!taskId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select goal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no_goal">No Goal</SelectItem>
-                {goals.map((goal) => (
-                  <SelectItem key={goal.id} value={goal.id}>
-                    {goal.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={goalOptions}
+              placeholder="Select goal"
+            />
           </div>
         </form>
 

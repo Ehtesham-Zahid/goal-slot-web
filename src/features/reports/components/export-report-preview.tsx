@@ -104,7 +104,17 @@ export function ExportReportPreview({
                     <div className="space-y-1">
                       {day.tasks.map((task, j) => (
                         <div key={j} className="flex justify-between gap-4 text-gray-700">
-                          <span style={task.goalColor ? { color: task.goalColor } : undefined}>{task.taskName}</span>
+                          <span className="flex items-center gap-2">
+                            <span style={task.goalColor ? { color: task.goalColor } : undefined}>{task.taskName}</span>
+                            {task.entryCount && task.entryCount > 1 && (
+                              <span
+                                title={`Rolled up from ${task.entryCount} time entries on this day`}
+                                className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-zinc-600"
+                              >
+                                ×{task.entryCount}
+                              </span>
+                            )}
+                          </span>
                           <span className="font-mono text-xs text-gray-500">{task.totalFormatted}</span>
                         </div>
                       ))}

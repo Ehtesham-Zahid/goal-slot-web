@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 
 import { useCategoriesQuery } from '@/features/categories'
 import { useGoalsQuery } from '@/features/goals/hooks/use-goals-queries'
@@ -55,8 +56,35 @@ export function ScheduleBlockModal({
   const { data: goals = [], isPending: isGoalsPending } = useGoalsQuery({ status: 'ACTIVE' })
   const { data: categories = [] } = useCategoriesQuery()
 
+  const categoryOptions = useMemo(() => {
+    return categories.map((cat) => ({
+      value: cat.value,
+      label: cat.name,
+      color: cat.color,
+    }))
+  }, [categories])
+
+  const goalOptions = useMemo(() => [
+    { value: 'no_goal', label: 'No Goal' },
+    ...goals.map((g) => ({
+      value: g.id,
+      label: g.title,
+      color: g.color,
+    }))
+  ], [goals])
+
   const isSaving = isCreating || isUpdating
   const isSeriesEdit = Boolean(block && seriesBlockCount > 1)
+
+  const resetForm = () => {
+    setTitle('')
+    setStartTime('09:00')
+    setEndTime('10:00')
+    setCategory(categories.length > 0 ? categories[0].value : '')
+    setSelectedDays(dayOfWeek !== null ? [dayOfWeek] : [1])
+    setGoalId('')
+    setColor('#FFD700')
+  }
 
   useEffect(() => {
     setUpdateScope('single')
@@ -78,16 +106,6 @@ export function ScheduleBlockModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [block, dayOfWeek, presetTimes])
-
-  const resetForm = () => {
-    setTitle('')
-    setStartTime('09:00')
-    setEndTime('10:00')
-    setCategory(categories.length > 0 ? categories[0].value : '')
-    setSelectedDays(dayOfWeek !== null ? [dayOfWeek] : [1])
-    setGoalId('')
-    setColor('#FFD700')
-  }
 
   useEffect(() => {
     if (categories.length > 0 && !category) {
@@ -275,27 +293,18 @@ export function ScheduleBlockModal({
 
           <div>
             <Label className="mb-1.5 block text-[10px] tracking-wider">Category</Label>
-            <Select
+            <SearchableSelect
               value={category}
-              onValueChange={(value) => {
+              onChange={(value) => {
                 setCategory(value)
                 const cat = categories.find((c) => c.value === value)
                 if (cat) {
                   setColor(cat.color)
                 }
               }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={categoryOptions}
+              placeholder="Select category"
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -333,23 +342,13 @@ export function ScheduleBlockModal({
 
           <div>
             <Label className="mb-1.5 block text-[10px] tracking-wider">Link to Goal (Optional)</Label>
-            <Select
+            <SearchableSelect
               value={goalId || 'no_goal'}
-              onValueChange={(value) => setGoalId(value === 'no_goal' ? '' : value)}
+              onChange={(value) => setGoalId(value === 'no_goal' ? '' : value)}
               disabled={isGoalsPending}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select goal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no_goal">No Goal</SelectItem>
-                {goals.map((goal) => (
-                  <SelectItem key={goal.id} value={goal.id}>
-                    {goal.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={goalOptions}
+              placeholder="Select goal"
+            />
           </div>
 
           <DialogFooter className="flex-row gap-3 pt-4">

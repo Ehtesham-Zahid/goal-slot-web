@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useCategoriesQuery } from '@/features/categories'
 import { useCreateGoalMutation, useUpdateGoalMutation } from '@/features/goals/hooks/use-goals-mutations'
@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchableSelect } from '@/components/ui/searchable-select'
+import { ColorPicker } from '@/components/ui/color-picker'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { TiptapEditor } from '@/components/tiptap-editor/tiptap-editor'
 import { WeeklyReflectionModal } from '@/features/goals/components/weekly-reflection-modal'
@@ -71,6 +72,14 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
   const deleteLabelMutation = useDeleteLabelMutation()
   const { data: categories = [] } = useCategoriesQuery()
   const { data: existingLabels = [] } = useLabelsQuery()
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((cat) => ({
+      value: cat.value,
+      label: cat.name,
+      color: cat.color || undefined,
+    }))
+  }, [categories])
 
   // Filter suggestions based on input - show all when empty (focused)
   const labelSuggestions = existingLabels
@@ -253,12 +262,7 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
                     value={form.category}
                     onChange={(value) => updateField('category', value)}
                     placeholder="Select category"
-                    options={categories.map((cat) => ({
-                      value: cat.value,
-                      label: cat.name,
-                      hint: cat.value,
-                      color: cat.color || undefined,
-                    }))}
+                    options={categoryOptions}
                   />
                 </div>
 
@@ -547,19 +551,10 @@ export function GoalModal({ isOpen, onClose, goal }: GoalModalProps) {
                 {/* Goal Color */}
                 <div>
                   <Label className="mb-1.5 block text-[10px] tracking-wider">Goal Color</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {COLOR_OPTIONS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => updateField('color', c)}
-                        className={`h-5 w-5 rounded border transition-transform hover:scale-110 ${
-                          form.color === c ? 'ring-2 ring-zinc-900 ring-offset-1' : 'border-zinc-300'
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
+                  <ColorPicker
+                    value={form.color}
+                    onChange={(hex) => updateField('color', hex)}
+                  />
                 </div>
               </div>
             </div>

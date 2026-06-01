@@ -44,7 +44,9 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [focusedIndex, setFocusedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const listRef = useRef<HTMLUListElement | null>(null)
 
   const selected = options.find((o) => o.value === value)
 
@@ -59,12 +61,49 @@ export function SearchableSelect({
     )
   }, [options, query])
 
+  // Reset keyboard selection index when filtered choices change or popover opens
+  useEffect(() => {
+    setFocusedIndex(0)
+  }, [filtered, open])
+
+  // Auto-focus the search input when the popover opens
   useEffect(() => {
     if (open) {
       setQuery('')
       requestAnimationFrame(() => inputRef.current?.focus())
     }
   }, [open])
+
+  // Scroll active/highlighted item into view if needed
+  useEffect(() => {
+    if (open && listRef.current && focusedIndex >= 0) {
+      const activeEl = listRef.current.children[focusedIndex] as HTMLElement
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [focusedIndex, open])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filtered.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setFocusedIndex((prev) => (prev + 1) % filtered.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setFocusedIndex((prev) => (prev - 1 + filtered.length) % filtered.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const option = filtered[focusedIndex]
+      if (option) {
+        onChange(option.value)
+        setOpen(false)
+      }
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
 
   return (
     <div className={className}>
@@ -107,17 +146,19 @@ export function SearchableSelect({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Search..."
                 className="h-8 w-full rounded-md border border-zinc-200 bg-white pl-8 pr-2 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-[#f2cc0d] focus:outline-none focus:ring-1 focus:ring-[#f2cc0d]"
               />
             </div>
           </div>
-          <ul className="max-h-64 overflow-y-auto py-1" role="listbox">
+          <ul ref={listRef} className="max-h-64 overflow-y-auto py-1" role="listbox">
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-xs text-zinc-500">{emptyMessage}</li>
             ) : (
-              filtered.map((option) => {
+              filtered.map((option, index) => {
                 const isSel = option.value === value
+                const isFocused = index === focusedIndex
                 return (
                   <li key={option.value}>
                     <button
@@ -128,8 +169,10 @@ export function SearchableSelect({
                         onChange(option.value)
                         setOpen(false)
                       }}
+                      onMouseEnter={() => setFocusedIndex(index)}
                       className={cn(
                         'flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-zinc-50',
+                        isFocused && !isSel && 'bg-zinc-100',
                         isSel && 'bg-[#fff7d1]',
                       )}
                     >
