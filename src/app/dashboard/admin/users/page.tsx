@@ -27,6 +27,7 @@ import { toast } from 'react-hot-toast'
 
 import { usersApi } from '@/lib/api'
 import { GoalSlotSpinner } from '@/components/goalslot-logo'
+import { BulkInviteModal } from '@/components/bulk-invite-modal'
 
 import { useAuthStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -117,6 +118,7 @@ export default function AdminUsersPage() {
   const [modalType, setModalType] = useState<ModalType>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [bulkInviteOpen, setBulkInviteOpen] = useState(false)
 
   // Create user form
   const [newUser, setNewUser] = useState<CreateUserData>({
@@ -414,10 +416,16 @@ export default function AdminUsersPage() {
         title="User Management"
         description="Manage users, roles, subscriptions, and access permissions"
         actions={
-          <Button onClick={() => openModal('create')} variant="brand">
-            <UserPlus className="h-4 w-4" />
-            Add Internal User
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => setBulkInviteOpen(true)} variant="secondary">
+              <Users className="h-4 w-4" />
+              Bulk Invite
+            </Button>
+            <Button onClick={() => openModal('create')} variant="brand">
+              <UserPlus className="h-4 w-4" />
+              Add Internal User
+            </Button>
+          </div>
         }
       />
 
@@ -1078,6 +1086,15 @@ export default function AdminUsersPage() {
           </DialogContent>
         )}
       </Dialog>
+
+      <BulkInviteModal
+        isOpen={bulkInviteOpen}
+        onClose={() => setBulkInviteOpen(false)}
+        onComplete={() => {
+          loadUsers()
+          loadStats()
+        }}
+      />
     </PageShell>
   )
 }
