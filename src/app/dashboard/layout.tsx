@@ -12,6 +12,7 @@ import { useApplyTheme as _useApplyTheme } from '@/lib/use-theme'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
+import { ShortcutsCheatsheet } from '@/components/shortcuts-cheatsheet'
 import { DailyCheckinBanner } from '@/components/daily-checkin-banner'
 import { GoalSlotSpinner } from '@/components/goalslot-logo'
 import { FocusNowBar } from '@/components/focus-now-bar'
@@ -46,11 +47,35 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // the browser's own "search bookmarks" shortcut doesn't fire. Plain `/`
   // is intentionally NOT bound here — too easy to trigger from inputs.
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // 1. Command palette shortcut (Cmd/Ctrl+K)
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         setPaletteOpen((v) => !v)
+        return
+      }
+
+      // 2. Input-guard: do not fire when typing inside inputs, textareas or contenteditables
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.closest('[contenteditable="true"]'))
+      ) {
+        return
+      }
+
+      // 3. Cheatsheet shortcut (? or Cmd/Ctrl+/)
+      const isQuestionMark = (e.key === '?' || (e.key === '/' && e.shiftKey)) && !e.metaKey && !e.ctrlKey && !e.altKey
+      const isCmdSlash = (e.metaKey || e.ctrlKey) && e.key === '/'
+
+      if (isQuestionMark || isCmdSlash) {
+        e.preventDefault()
+        setShortcutsOpen((v) => !v)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -108,6 +133,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         onOpenCoach={fireOpenCoach}
         onOpenCheckin={fireOpenCheckin}
       />
+      <ShortcutsCheatsheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <TipsCorner />
     </SidebarProvider>
   )
