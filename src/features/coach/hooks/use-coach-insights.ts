@@ -36,7 +36,6 @@ export function useCoachInsights(status: CoachInsightStatusFilter = 'ACTIVE') {
         throw err
       }
     },
-    refetchInterval: 30000,
   })
 
   const updateStatusMutation = useMutation({
