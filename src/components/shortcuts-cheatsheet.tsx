@@ -19,6 +19,7 @@ export interface Shortcut {
 export const SHORTCUTS: Shortcut[] = [
   { keys: ['Ctrl/⌘', 'K'], description: 'Open command palette', group: 'Navigation' },
   { keys: ['?'], description: 'Open keyboard shortcuts cheat sheet', group: 'Navigation' },
+  { keys: ['Ctrl/⌘', '/'], description: 'Open keyboard shortcuts cheat sheet', group: 'Navigation' },
   { keys: ['Esc'], description: 'Close active floating panel / modal', group: 'Navigation' },
   { keys: ['Ctrl/⌘', 'Click'], description: 'Multi-select notes in note list', group: 'Editing' },
   { keys: ['Ctrl/⌘', 'Enter'], description: 'Send message in Coach chat', group: 'Coach' },

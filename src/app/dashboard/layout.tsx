@@ -50,6 +50,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return
+
       const isModifierKey = e.metaKey || e.ctrlKey
 
       // 1. Modifier-based global shortcuts (work even inside inputs/textareas)
