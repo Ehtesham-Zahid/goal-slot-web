@@ -6,6 +6,5 @@ export function useTasksQuery(filters?: { status?: TaskStatus; statuses?: TaskSt
   return useQuery({
     queryKey: taskQueries.list(filters),
     queryFn: () => fetchTasks(filters),
-    refetchInterval: 30000,
   })
 }

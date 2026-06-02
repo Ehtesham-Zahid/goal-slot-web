@@ -453,8 +453,8 @@ export function CoachProposalCard({ block, sourceMessageId }: CoachProposalCardP
           const channel = new BroadcastChannel('goalslot-sync')
           channel.postMessage({ type: 'COACH_PROPOSAL_APPLIED' })
           channel.close()
-        } catch (e) {
-          console.error('Failed to broadcast sync event', e)
+        } catch {
+          // Ignore broadcast errors
         }
       }
     } catch (err) {

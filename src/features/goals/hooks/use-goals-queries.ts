@@ -6,7 +6,6 @@ export function useGoalsQuery(filters?: GoalFilters, options?: UseQueryOptions<G
   return useQuery<Goal[]>({
     queryKey: goalQueries.list(filters),
     queryFn: () => fetchGoals(filters),
-    refetchInterval: 30000,
     ...options,
   })
 }
@@ -15,6 +14,5 @@ export function useGoalStatsQuery() {
   return useQuery<GoalStats>({
     queryKey: goalQueries.stats(),
     queryFn: fetchGoalStats,
-    refetchInterval: 30000,
   })
 }
