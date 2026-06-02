@@ -7,8 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDuration(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
+  if (!Number.isFinite(minutes) || minutes < 0) return '0m'
+
+  const normalizedMinutes = Math.floor(minutes)
+  const hours = Math.floor(normalizedMinutes / 60)
+  const mins = normalizedMinutes % 60
+
   if (hours === 0) return `${mins}m`
   if (mins === 0) return `${hours}h`
   return `${hours}h ${mins}m`
@@ -96,7 +100,6 @@ export const COLOR_OPTIONS = [
   '#14B8A6', // Teal
   '#06B6D4', // Cyan
   '#F59E0B', // Amber
-  '#8B5CF6', // Violet
   '#64748B', // Slate
   '#A855F7', // Fuchsia
   '#10B981', // Emerald
