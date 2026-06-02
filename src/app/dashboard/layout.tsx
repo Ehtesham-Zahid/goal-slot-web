@@ -50,14 +50,25 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // 1. Command palette shortcut (Cmd/Ctrl+K)
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault()
-        setPaletteOpen((v) => !v)
-        return
+      const isModifierKey = e.metaKey || e.ctrlKey
+
+      // 1. Modifier-based global shortcuts (work even inside inputs/textareas)
+      if (isModifierKey) {
+        // Command palette (Cmd/Ctrl+K)
+        if (e.key === 'k' || e.key === 'K') {
+          e.preventDefault()
+          setPaletteOpen((v) => !v)
+          return
+        }
+        // Cheatsheet shortcut (Cmd/Ctrl+/)
+        if (e.key === '/') {
+          e.preventDefault()
+          setShortcutsOpen((v) => !v)
+          return
+        }
       }
 
-      // 2. Input-guard: do not fire when typing inside inputs, textareas or contenteditables
+      // 2. Input-guard: do not fire character-based keys (like '?') when typing
       const target = e.target as HTMLElement | null
       if (
         target &&
@@ -69,11 +80,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // 3. Cheatsheet shortcut (? or Cmd/Ctrl+/)
-      const isQuestionMark = (e.key === '?' || (e.key === '/' && e.shiftKey)) && !e.metaKey && !e.ctrlKey && !e.altKey
-      const isCmdSlash = (e.metaKey || e.ctrlKey) && e.key === '/'
-
-      if (isQuestionMark || isCmdSlash) {
+      // 3. Character-based shortcuts (e.g., '?')
+      const isQuestionMark = (e.key === '?' || (e.key === '/' && e.shiftKey)) && !e.altKey
+      if (isQuestionMark) {
         e.preventDefault()
         setShortcutsOpen((v) => !v)
       }
