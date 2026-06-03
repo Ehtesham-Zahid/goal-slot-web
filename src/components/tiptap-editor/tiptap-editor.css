@@ -160,19 +160,60 @@
    block elements with inline line-height/height/position styles that
    collapse the box so the next paragraph overlaps its predecessor's
    wrap. The paste sanitizer strips these styles before parse, but even
-   if one slips through, force every block-level descendant inside the
-   editor back to normal flow with a safe minimum line-height. Nothing
-   inside the editor needs absolute positioning. */
+   if one slips through (and especially for notes saved before the
+   sanitizer existed), force every block-level descendant inside the
+   editor back to normal block flow with an explicit minimum height and
+   mandatory vertical margin so consecutive paragraphs can never visually
+   merge. The !important is required to beat inline style="..." values
+   that pasted Word/Notion HTML often ships with !important too — at
+   equal specificity, the latest !important rule wins, so this lives
+   below the per-element styling above on purpose. */
 .tiptap-editor .ProseMirror p,
 .tiptap-editor .ProseMirror li,
 .tiptap-editor .ProseMirror h1,
 .tiptap-editor .ProseMirror h2,
 .tiptap-editor .ProseMirror h3,
 .tiptap-editor .ProseMirror blockquote {
+  display: block !important;
   line-height: 1.55 !important;
+  min-height: 1.5em !important;
   position: static !important;
   float: none !important;
   clear: none !important;
+  vertical-align: baseline !important;
+  white-space: normal !important;
+}
+
+.tiptap-editor .ProseMirror > p,
+.tiptap-editor .ProseMirror > h1,
+.tiptap-editor .ProseMirror > h2,
+.tiptap-editor .ProseMirror > h3,
+.tiptap-editor .ProseMirror > blockquote {
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+}
+
+.tiptap-editor .ProseMirror > p:first-child,
+.tiptap-editor .ProseMirror > h1:first-child,
+.tiptap-editor .ProseMirror > h2:first-child,
+.tiptap-editor .ProseMirror > h3:first-child,
+.tiptap-editor .ProseMirror > blockquote:first-child {
+  margin-top: 0 !important;
+}
+
+/* Inline children inside a paragraph (links, spans, em, strong) must
+   stay inline so they don't push the paragraph's baseline. */
+.tiptap-editor .ProseMirror p > a,
+.tiptap-editor .ProseMirror p > span,
+.tiptap-editor .ProseMirror p > em,
+.tiptap-editor .ProseMirror p > strong,
+.tiptap-editor .ProseMirror p > code,
+.tiptap-editor .ProseMirror p > mark,
+.tiptap-editor .ProseMirror p > u,
+.tiptap-editor .ProseMirror p > s {
+  display: inline !important;
+  position: static !important;
+  float: none !important;
   vertical-align: baseline !important;
 }
 
