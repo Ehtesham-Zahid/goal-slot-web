@@ -21,6 +21,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { common, createLowlight } from 'lowlight'
+import { TextSelection } from 'prosemirror-state'
 
 import './tiptap-editor.css'
 
@@ -65,6 +66,90 @@ import { SlashCommands } from './slash-commands'
 
 // Create lowlight instance with common languages
 const lowlight = createLowlight(common)
+
+// Surgical Backspace inside a list item.
+//
+// Returns true if it handled the event (and called preventDefault); false
+// to let ProseMirror's default Backspace run.
+//
+// Three branches:
+//   1. Cursor not at start of an empty selection in a list item -> default.
+//   2. List item has TEXT content -> liftListItem. Strips the bullet but
+//      keeps the text where it is. Without this, the default joinBackward
+//      drags the text into the previous block (e.g. into a heading), which
+//      is the original "bullet text moved into heading" bug.
+//   3. List item is EMPTY:
+//      - With a previous sibling -> custom transaction that deletes the
+//        empty <li> and appends any nested children to the previous <li>.
+//        Children stay at their original visual depth (now under the prev
+//        item instead of under the deleted one). Avoids joinBackward,
+//        which finds boundaries at the wrong nesting level and collapses
+//        unrelated structure.
+//      - Without a previous sibling -> default. ProseMirror lifts cleanly.
+function handleListBackspace(ed: any, event: KeyboardEvent): boolean {
+  const { selection } = ed.state
+  if (!selection.empty) return false
+  if (selection.$from.parentOffset !== 0) return false
+
+  const inTaskItem = ed.isActive('taskItem')
+  const inListItem = ed.isActive('listItem')
+  if (!inTaskItem && !inListItem) return false
+
+  const itemType = inTaskItem ? 'taskItem' : 'listItem'
+
+  const { $from } = ed.state.selection
+  let liDepth = -1
+  for (let d = $from.depth; d >= 0; d--) {
+    if ($from.node(d).type.name === itemType) {
+      liDepth = d
+      break
+    }
+  }
+  if (liDepth < 0) return false
+
+  const liNode = $from.node(liDepth)
+  const firstChild = liNode.firstChild
+  const isItemEmpty = !firstChild || firstChild.content.size === 0
+
+  if (!isItemEmpty) {
+    if (!ed.can().liftListItem(itemType)) return false
+    event.preventDefault()
+    ed.chain().focus().liftListItem(itemType).run()
+    return true
+  }
+
+  const indexInParent = $from.index(liDepth - 1)
+  if (indexInParent === 0) return false
+
+  const parentList = $from.node(liDepth - 1)
+  const prevLi = parentList.child(indexInParent - 1)
+  const liStart = $from.before(liDepth)
+  const liEnd = $from.after(liDepth)
+  const prevLiInnerEnd = liStart - 1
+
+  const nestedNodes: any[] = []
+  for (let i = 1; i < liNode.childCount; i++) {
+    nestedNodes.push(liNode.child(i))
+  }
+
+  void prevLi
+
+  const tr = ed.state.tr
+  tr.delete(liStart, liEnd)
+
+  let insertPos = prevLiInnerEnd
+  for (const node of nestedNodes) {
+    tr.insert(insertPos, node)
+    insertPos += node.nodeSize
+  }
+
+  const cursorPos = Math.min(insertPos, tr.doc.content.size)
+  tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
+
+  event.preventDefault()
+  ed.view.dispatch(tr)
+  return true
+}
 
 // Normalize stored HTML before handing it to ProseMirror. Notes that
 // went through earlier versions of this editor accumulated structural
@@ -337,215 +422,37 @@ export function TiptapEditor({
         }
         return false
       },
-      // Tab + Shift-Tab. Scoped to the editor via editorProps (not a
-      // document-level listener) so it doesn't steal Tab from inputs
-      // elsewhere on the page (share dialog, settings, etc).
-      //
-      // Three cases, checked in order:
-      //   1. Inside a table cell -> return false so the Table extension's
-      //      built-in Tab handler navigates between cells.
-      //   2. Inside any list item (bullet, ordered, task) -> sink / lift.
-      //      sinkListItem can refuse if the item is the first child of
-      //      its parent list (ProseMirror constraint); in that case we
-      //      fall through to block indent so the user still sees a
-      //      response instead of a dead key.
-      //   3. Anywhere else (paragraph, heading, including across a
-      //      multi-line selection) -> indent / outdent the block via the
-      //      IndentExtension, which writes a data-indent attribute the
-      //      CSS layer renders as padding-left.
+      // Tab and Backspace overrides. Single principle: trust ProseMirror's
+      // primitives, only override when defaults can't express the behavior
+      // we want, and when we do override, build surgical transactions
+      // (never joinBackward, which walks the doc tree looking for any
+      // joinable boundary and can collapse the wrong level).
       handleKeyDown: (_view, event) => {
         const ed = editorRef.current
         if (!ed) return false
 
-        // Backspace at the very start of a list item. Two distinct cases:
-        //
-        //  a) The list item has TEXT content. liftListItem unwraps the
-        //     bullet, leaving the text as a plain paragraph at the same
-        //     position. Without this override ProseMirror's default
-        //     joinBackward sucks the bullet's text up into the previous
-        //     block (often a heading), which users report as "my bullet
-        //     text just moved into the heading above."
-        //
-        //  b) The list item is EMPTY and has a previous sibling. We let
-        //     joinBackward merge it into that previous sibling instead.
-        //     This matters when the empty item has nested children (e.g.
-        //     `<li>(empty)<ul><li>Ernie</li></ul></li>` after Arslan):
-        //     liftListItem would yank the entire subtree up one level
-        //     (the "Ernie un-tabs itself" bug), but joinBackward folds
-        //     the empty item's content into the previous <li>, so the
-        //     nested children stay at their original visual depth — they
-        //     simply become children of the previous bullet instead.
         if (event.key === 'Backspace') {
-          const { selection } = ed.state
-          if (!selection.empty) return false
-          if (selection.$from.parentOffset !== 0) return false
-
-          const inTaskItem = ed.isActive('taskItem')
-          const inListItem = ed.isActive('listItem')
-          if (!inTaskItem && !inListItem) return false
-
-          const itemType = inTaskItem ? 'taskItem' : 'listItem'
-
-          const { $from } = ed.state.selection
-          let liDepth = -1
-          for (let d = $from.depth; d >= 0; d--) {
-            if ($from.node(d).type.name === itemType) {
-              liDepth = d
-              break
-            }
-          }
-          if (liDepth < 0) return false
-
-          const liNode = $from.node(liDepth)
-          const firstChild = liNode.firstChild
-          const isItemEmpty = !firstChild || firstChild.content.size === 0
-          const indexInParent = $from.index(liDepth - 1)
-          const hasPrevSibling = indexInParent > 0
-
-          if (isItemEmpty && hasPrevSibling) {
-            event.preventDefault()
-            ed.chain().focus().joinBackward().run()
-            return true
-          }
-
-          if (!ed.can().liftListItem(itemType)) return false
-          event.preventDefault()
-          ed.chain().focus().liftListItem(itemType).run()
-          return true
+          return handleListBackspace(ed, event)
         }
 
         if (event.key !== 'Tab') return false
-
         if (ed.isActive('table')) return false
 
         event.preventDefault()
 
-        const inTaskItem = ed.isActive('taskItem')
-        const inListItem = ed.isActive('listItem')
+        const itemType = ed.isActive('taskItem')
+          ? 'taskItem'
+          : ed.isActive('listItem')
+            ? 'listItem'
+            : null
 
-        if (inTaskItem || inListItem) {
-          const itemType = inTaskItem ? 'taskItem' : 'listItem'
-          // Inside a list item we *only* sink / lift. We never fall
-          // through to indentBlock, because that would write a
-          // data-indent attribute onto the <p> nested inside the <li>,
-          // which then renders as a huge gap between the bullet and the
-          // text (and stacks on every Tab press). When sink / lift
-          // refuses (e.g. first child of its list, top-level item), we
-          // swallow Tab so the browser doesn't shift focus out of the
-          // editor, but we make no further change.
-
-          // Detect whether the selection spans more than one list item
-          // of the active type. If it does, hand off to ProseMirror's
-          // native sink/lift so all selected items move together as a
-          // group — the parent-only wrapper below only makes sense for
-          // a single-item cursor, and trying to apply it to a range
-          // ends up only sinking the first item and lifting only that
-          // first item's children, leaving the rest of the selection
-          // unmoved (which is the user-visible "Tab does nothing on a
-          // multi-line selection" bug).
-          const { from: selFrom, to: selTo } = ed.state.selection
-          const itemPositions = new Set<number>()
-          ed.state.doc.nodesBetween(selFrom, selTo, (node, pos) => {
-            if (node.type.name === itemType) itemPositions.add(pos)
-          })
-          const isMultiItem = itemPositions.size > 1
-
-          if (isMultiItem) {
-            if (event.shiftKey) {
-              ed.chain().focus().liftListItem(itemType).run()
-            } else {
-              ed.chain().focus().sinkListItem(itemType).run()
-            }
-            return true
-          }
-
+        if (itemType) {
           if (event.shiftKey) {
-            const lifted = ed.can().liftListItem(itemType)
-            if (lifted) {
-              ed.chain().focus().liftListItem(itemType).run()
-            }
-            return true
+            ed.chain().focus().liftListItem(itemType).run()
           } else {
-            const sunk = ed.can().sinkListItem(itemType)
-            if (sunk) {
-              // Detect whether the current list item has any nested list
-              // children. ProseMirror's sinkListItem always moves the
-              // entire subtree, which means indenting a parent that has
-              // its own nested bullets pushes the children down too.
-              // The user expectation here (and what Bear/Roam do, even
-              // though Notion does not) is that only the parent moves
-              // and the former children stay at their original visual
-              // level by becoming siblings of the now-indented parent.
-              const { $from } = ed.state.selection
-              let liDepth = -1
-              for (let d = $from.depth; d >= 0; d--) {
-                if ($from.node(d).type.name === itemType) {
-                  liDepth = d
-                  break
-                }
-              }
-              let childCount = 0
-              if (liDepth >= 0) {
-                const liNode = $from.node(liDepth)
-                for (let i = 0; i < liNode.childCount; i++) {
-                  const c = liNode.child(i)
-                  if (
-                    c.type.name === 'bulletList' ||
-                    c.type.name === 'orderedList' ||
-                    c.type.name === 'taskList'
-                  ) {
-                    childCount += c.childCount
-                  }
-                }
-              }
-
-              ed.chain().focus().sinkListItem(itemType).run()
-
-              // After the sink, lift each former child once so they end
-              // up at the parent's new level instead of one deeper. Each
-              // iteration re-reads the doc because the previous lift
-              // shifted positions.
-              const parentCursor = ed.state.selection.from
-              for (let i = 0; i < childCount; i++) {
-                const { $from: cf } = ed.state.selection
-                let pDepth = -1
-                for (let d = cf.depth; d >= 0; d--) {
-                  if (cf.node(d).type.name === itemType) {
-                    pDepth = d
-                    break
-                  }
-                }
-                if (pDepth < 0) break
-                const pNode = cf.node(pDepth)
-                const pStart = cf.before(pDepth)
-                let offset = 1
-                let firstChildItemPos = -1
-                for (let j = 0; j < pNode.childCount; j++) {
-                  const c = pNode.child(j)
-                  if (
-                    (c.type.name === 'bulletList' ||
-                      c.type.name === 'orderedList' ||
-                      c.type.name === 'taskList') &&
-                    c.childCount > 0
-                  ) {
-                    firstChildItemPos = pStart + offset + 1 + 1
-                    break
-                  }
-                  offset += c.nodeSize
-                }
-                if (firstChildItemPos < 0) break
-                ed
-                  .chain()
-                  .setTextSelection(firstChildItemPos)
-                  .liftListItem(itemType)
-                  .run()
-              }
-              ed.chain().setTextSelection(parentCursor).run()
-            }
-            // Whether sink succeeded or not, swallow Tab so we never
-            // fall through to indentBlock from inside a list item.
-            return true
+            ed.chain().focus().sinkListItem(itemType).run()
           }
+          return true
         }
 
         if (event.shiftKey) {
