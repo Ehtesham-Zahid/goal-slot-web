@@ -69,9 +69,32 @@ If neither is true, you are not assigned.
 
 ## When opening a PR
 
-- Reference the assigned issue at the top: `Related to #190` or
-  `Closes #190`. The "Closes" form auto-closes the issue when the PR
-  merges, so only use it on the PR that finishes the feature.
+**Every PR must reference an open, assigned issue.** This is the second
+hard rule after claim-before-you-code, and PRs without an issue link
+will be closed with a request to open one. Random PRs that arrive
+without a tracked issue behind them break our ability to plan releases,
+to coordinate contributors, and to make sure we are not duplicating
+work that someone else has already claimed.
+
+- Reference the assigned issue at the top of the description:
+  `Related to #190` or `Closes #190`. The "Closes" form auto-closes the
+  issue when the PR merges, so only use it on the PR that actually
+  finishes the feature.
+- If your work is part of a multi-PR plan (PR 1 of 3, PR 2 of 3, etc.),
+  use `Related to #N (PR M of K)` on intermediate PRs and `Closes #N`
+  only on the final PR.
+- If there is no issue for what you want to do, **open one first**.
+  Describe the scope, wait for a maintainer to label it and assign it
+  to you, then open the PR. Do not skip the issue step. We will close
+  the PR otherwise.
+- If the issue is assigned to a different contributor, you do not have
+  authority to open a PR for it. Coordinate with the assignee in the
+  issue comments first. They have to agree in writing (in the issue) to
+  hand the work off, and a maintainer reassigns before you start. See
+  the claim-before-you-code section.
+
+Other PR description requirements:
+
 - Describe what changed in a short summary, then list the files you
   touched and why.
 - Include a Loom (2 to 4 minutes is plenty) showing the feature working,
@@ -90,8 +113,17 @@ feature touches both repos:
 
 - Open the PR on each repo at roughly the same time.
 - Link them to each other in both descriptions.
-- A PR with a missing counterpart will be held from merge until the
-  other half exists.
+- A PR with a missing counterpart will be **held, not closed**, until
+  the other half exists. The code is fine, it just cannot ship alone.
+- If you nudge a maintainer asking why a paired PR has not merged, we
+  will tell you which half we are waiting on. If you can also take that
+  other half, claim its issue first (the rule above). If you cannot,
+  let us know and we will flag a different contributor to pair with you.
+
+This rule is per cross-repo feature. It does not block a single
+contributor's intermediate PRs within a multi-PR plan (e.g., Notion
+auth as PR 1 of 3) AS LONG AS the staged plan was pre-approved in the
+issue by a maintainer.
 
 ## Comment style on PRs and issues
 
