@@ -323,7 +323,79 @@ export function TiptapEditor({
           } else {
             const sunk = ed.can().sinkListItem(itemType)
             if (sunk) {
+              // Detect whether the current list item has any nested list
+              // children. ProseMirror's sinkListItem always moves the
+              // entire subtree, which means indenting a parent that has
+              // its own nested bullets pushes the children down too.
+              // The user expectation here (and what Bear/Roam do, even
+              // though Notion does not) is that only the parent moves
+              // and the former children stay at their original visual
+              // level by becoming siblings of the now-indented parent.
+              const { $from } = ed.state.selection
+              let liDepth = -1
+              for (let d = $from.depth; d >= 0; d--) {
+                if ($from.node(d).type.name === itemType) {
+                  liDepth = d
+                  break
+                }
+              }
+              let childCount = 0
+              if (liDepth >= 0) {
+                const liNode = $from.node(liDepth)
+                for (let i = 0; i < liNode.childCount; i++) {
+                  const c = liNode.child(i)
+                  if (
+                    c.type.name === 'bulletList' ||
+                    c.type.name === 'orderedList' ||
+                    c.type.name === 'taskList'
+                  ) {
+                    childCount += c.childCount
+                  }
+                }
+              }
+
               ed.chain().focus().sinkListItem(itemType).run()
+
+              // After the sink, lift each former child once so they end
+              // up at the parent's new level instead of one deeper. Each
+              // iteration re-reads the doc because the previous lift
+              // shifted positions.
+              const parentCursor = ed.state.selection.from
+              for (let i = 0; i < childCount; i++) {
+                const { $from: cf } = ed.state.selection
+                let pDepth = -1
+                for (let d = cf.depth; d >= 0; d--) {
+                  if (cf.node(d).type.name === itemType) {
+                    pDepth = d
+                    break
+                  }
+                }
+                if (pDepth < 0) break
+                const pNode = cf.node(pDepth)
+                const pStart = cf.before(pDepth)
+                let offset = 1
+                let firstChildItemPos = -1
+                for (let j = 0; j < pNode.childCount; j++) {
+                  const c = pNode.child(j)
+                  if (
+                    (c.type.name === 'bulletList' ||
+                      c.type.name === 'orderedList' ||
+                      c.type.name === 'taskList') &&
+                    c.childCount > 0
+                  ) {
+                    firstChildItemPos = pStart + offset + 1 + 1
+                    break
+                  }
+                  offset += c.nodeSize
+                }
+                if (firstChildItemPos < 0) break
+                ed
+                  .chain()
+                  .setTextSelection(firstChildItemPos)
+                  .liftListItem(itemType)
+                  .run()
+              }
+              ed.chain().setTextSelection(parentCursor).run()
               return true
             }
           }
