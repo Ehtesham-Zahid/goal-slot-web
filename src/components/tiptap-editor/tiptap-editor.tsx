@@ -357,13 +357,24 @@ export function TiptapEditor({
         const ed = editorRef.current
         if (!ed) return false
 
-        // Backspace at the very start of a list item should unwrap the
-        // bullet (lift to parent list or to a paragraph if top level),
-        // not merge the text into the previous block. ProseMirror's
-        // default joinBackward behavior is what produces the "my bullet
-        // text just moved up into the heading above" behavior users
-        // run into. Only intercept when the selection is empty and the
-        // cursor sits at parentOffset 0 of a list item.
+        // Backspace at the very start of a list item. Two distinct cases:
+        //
+        //  a) The list item has TEXT content. liftListItem unwraps the
+        //     bullet, leaving the text as a plain paragraph at the same
+        //     position. Without this override ProseMirror's default
+        //     joinBackward sucks the bullet's text up into the previous
+        //     block (often a heading), which users report as "my bullet
+        //     text just moved into the heading above."
+        //
+        //  b) The list item is EMPTY and has a previous sibling. We let
+        //     joinBackward merge it into that previous sibling instead.
+        //     This matters when the empty item has nested children (e.g.
+        //     `<li>(empty)<ul><li>Ernie</li></ul></li>` after Arslan):
+        //     liftListItem would yank the entire subtree up one level
+        //     (the "Ernie un-tabs itself" bug), but joinBackward folds
+        //     the empty item's content into the previous <li>, so the
+        //     nested children stay at their original visual depth — they
+        //     simply become children of the previous bullet instead.
         if (event.key === 'Backspace') {
           const { selection } = ed.state
           if (!selection.empty) return false
@@ -374,8 +385,30 @@ export function TiptapEditor({
           if (!inTaskItem && !inListItem) return false
 
           const itemType = inTaskItem ? 'taskItem' : 'listItem'
-          if (!ed.can().liftListItem(itemType)) return false
 
+          const { $from } = ed.state.selection
+          let liDepth = -1
+          for (let d = $from.depth; d >= 0; d--) {
+            if ($from.node(d).type.name === itemType) {
+              liDepth = d
+              break
+            }
+          }
+          if (liDepth < 0) return false
+
+          const liNode = $from.node(liDepth)
+          const firstChild = liNode.firstChild
+          const isItemEmpty = !firstChild || firstChild.content.size === 0
+          const indexInParent = $from.index(liDepth - 1)
+          const hasPrevSibling = indexInParent > 0
+
+          if (isItemEmpty && hasPrevSibling) {
+            event.preventDefault()
+            ed.chain().focus().joinBackward().run()
+            return true
+          }
+
+          if (!ed.can().liftListItem(itemType)) return false
           event.preventDefault()
           ed.chain().focus().liftListItem(itemType).run()
           return true
