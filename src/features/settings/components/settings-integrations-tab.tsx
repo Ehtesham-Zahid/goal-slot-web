@@ -16,6 +16,16 @@ import { GlassCard } from '@/components/ui/glass-card'
 import { Input } from '@/components/ui/input'
 import { SectionHeader } from '@/components/ui/section-header'
 import { Loading } from '@/components/ui/loading'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 // Free-tier providers first so they're the obvious default for users
 // who don't want to attach a credit card. Order mirrors the picker chips.
@@ -39,6 +49,8 @@ export function SettingsIntegrationsTab() {
     }
   }, [searchParams, router])
 
+  const [isDisconnectDialogOpen, setIsDisconnectDialogOpen] = useState(false)
+
   const handleConnectNotion = () => {
     if (!user?.id) return
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || ''
@@ -46,12 +58,13 @@ export function SettingsIntegrationsTab() {
   }
 
   const handleDisconnectNotion = () => {
-    const ok = window.confirm('Disconnect your Notion workspace? Pushed notes will remain in Notion, but you will not be able to sync them.')
-    if (ok) {
-      disconnectNotion().then(() => {
-        toast.success('Notion disconnected')
-      })
-    }
+    setIsDisconnectDialogOpen(true)
+  }
+
+  const handleConfirmDisconnect = async () => {
+    await disconnectNotion()
+    toast.success('Notion disconnected')
+    setIsDisconnectDialogOpen(false)
   }
 
   const {
@@ -196,6 +209,28 @@ export function SettingsIntegrationsTab() {
             </Button>
           </div>
         )}
+
+        {/* Disconnect Confirmation Dialog */}
+        <AlertDialog open={isDisconnectDialogOpen} onOpenChange={setIsDisconnectDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Disconnect Notion?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Pushed notes will remain in Notion, but you won&apos;t be able to sync or push new notes until you reconnect.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={notionDisconnecting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDisconnect}
+                className="bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50"
+                disabled={notionDisconnecting}
+              >
+                {notionDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </GlassCard>
 
       <GlassCard padded>
