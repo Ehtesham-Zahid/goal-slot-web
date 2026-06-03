@@ -892,3 +892,15 @@ export const notesApi = {
 export const publicNotesApi = {
   getByToken: (token: string) => api.get(`/public/notes/${token}`),
 }
+
+export interface NotionStatusDto {
+  connected: boolean
+  workspaceName: string | null
+  workspaceIcon: string | null
+  connectedAt: string | null
+}
+
+export const integrationsApi = {
+  getNotionStatus: () => api.get<NotionStatusDto>('/integrations/notion/status'),
+  disconnectNotion: () => api.delete<{ success: boolean }>('/integrations/notion/disconnect'),
+}

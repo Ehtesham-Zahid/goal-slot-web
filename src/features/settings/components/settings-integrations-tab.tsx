@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 import { ByokProvider, PROVIDER_META, useByokKey } from '@/features/settings/hooks/use-byok-key'
+import { useNotionConnection } from '@/features/settings/hooks/use-notion-connection'
+import { useAuthStore } from '@/lib/store'
 import { KeyRound, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
@@ -12,12 +15,45 @@ import { Button } from '@/components/ui/button'
 import { GlassCard } from '@/components/ui/glass-card'
 import { Input } from '@/components/ui/input'
 import { SectionHeader } from '@/components/ui/section-header'
+import { Loading } from '@/components/ui/loading'
 
 // Free-tier providers first so they're the obvious default for users
 // who don't want to attach a credit card. Order mirrors the picker chips.
 const PROVIDERS: ByokProvider[] = ['gemini', 'openrouter', 'openai', 'anthropic']
 
 export function SettingsIntegrationsTab() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const { status: notionStatus, isLoading: notionLoading, isPending: notionDisconnecting, disconnect: disconnectNotion } = useNotionConnection()
+
+  useEffect(() => {
+    const notionResult = searchParams.get('notion')
+    if (notionResult === 'connected') {
+      toast.success('Notion workspace connected successfully!')
+      router.replace('/dashboard/settings?tab=integrations', { scroll: false })
+    } else if (notionResult === 'error') {
+      const msg = searchParams.get('message') || 'Connection failed'
+      toast.error(`Notion connection failed: ${msg}`)
+      router.replace('/dashboard/settings?tab=integrations', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  const handleConnectNotion = () => {
+    if (!user?.id) return
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || ''
+    window.location.href = `${apiBaseUrl}/api/integrations/notion/connect?userId=${user.id}`
+  }
+
+  const handleDisconnectNotion = () => {
+    const ok = window.confirm('Disconnect your Notion workspace? Pushed notes will remain in Notion, but you will not be able to sync them.')
+    if (ok) {
+      disconnectNotion().then(() => {
+        toast.success('Notion disconnected')
+      })
+    }
+  }
+
   const {
     provider: savedProvider,
     maskedKey,
@@ -97,6 +133,71 @@ export function SettingsIntegrationsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Notion Connection Card */}
+      <GlassCard padded>
+        <SectionHeader
+          title={
+            <span className="flex items-center gap-2">
+              <span className="h-5 w-5 bg-zinc-900 text-white rounded flex items-center justify-center font-bold text-[10px]">N</span>
+              Notion Integration
+            </span>
+          }
+          action={
+            notionLoading ? (
+              <Badge variant="default">Checking connection...</Badge>
+            ) : notionStatus.connected ? (
+              <Badge variant="success">Connected</Badge>
+            ) : (
+              <Badge variant="default">Not Connected</Badge>
+            )
+          }
+        />
+
+        <p className="mb-4 text-sm text-zinc-600">
+          Connect your Notion workspace to pull select Notion pages into GoalSlot as reference material and push your notes and journal entries out to your Notion database.
+        </p>
+
+        {notionLoading ? (
+          <div className="flex items-center justify-center p-6 bg-zinc-50 border border-zinc-200 rounded-lg">
+            <Loading className="h-5 w-5" />
+          </div>
+        ) : notionStatus.connected ? (
+          <div className="flex flex-col gap-4 bg-zinc-50 border border-zinc-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              {notionStatus.workspaceIcon ? (
+                <img src={notionStatus.workspaceIcon} alt="Workspace Icon" className="h-8 w-8 rounded object-cover" />
+              ) : (
+                <div className="h-8 w-8 bg-zinc-800 text-white font-bold flex items-center justify-center rounded">
+                  {notionStatus.workspaceName?.charAt(0) || 'N'}
+                </div>
+              )}
+              <div>
+                <h4 className="font-semibold text-sm text-zinc-900">{notionStatus.workspaceName}</h4>
+                <p className="text-xs text-zinc-500">
+                  Connected on {notionStatus.connectedAt ? new Date(notionStatus.connectedAt).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDisconnectNotion}
+              disabled={notionDisconnecting}
+              className="w-full text-rose-600 hover:text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-100/50 mt-2"
+            >
+              Disconnect Notion
+            </Button>
+          </div>
+        ) : (
+          <div className="pt-2">
+            <Button variant="brand" className="w-full" onClick={handleConnectNotion}>
+              Connect Notion Workspace
+            </Button>
+          </div>
+        )}
+      </GlassCard>
+
       <GlassCard padded>
         <SectionHeader
           title={
