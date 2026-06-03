@@ -163,6 +163,23 @@ function handleListBackspace(ed: any, event: KeyboardEvent): boolean {
   const isItemEmpty = !firstChild || firstChild.content.size === 0
 
   if (!isItemEmpty) {
+    // liftListItem is only safe for top-level bullets. For nested
+    // bullets (parent of parent UL is itself a list item), lifting can
+    // produce structurally surprising results when the parent LI is
+    // empty or the lifted item ends up in unexpected places — the user
+    // reported the "cursor jumps to Ernie" case. Default joinBackward
+    // is reliable for nested bullets (it merges the bullet's text into
+    // whatever block comes immediately before it, which is the
+    // industry-standard Backspace behavior). Only intervene at the top
+    // level, where the default would otherwise merge the bullet text
+    // into the heading or paragraph above the list — the "text moved
+    // into heading" original bug.
+    const grandparentDepth = liDepth - 2
+    const isTopLevelList =
+      grandparentDepth >= 0 &&
+      $from.node(grandparentDepth).type.name !== 'listItem' &&
+      $from.node(grandparentDepth).type.name !== 'taskItem'
+    if (!isTopLevelList) return false
     if (!ed.can().liftListItem(itemType)) return false
     event.preventDefault()
     ed.chain().focus().liftListItem(itemType).run()
