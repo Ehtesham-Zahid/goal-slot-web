@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { ByokProvider, PROVIDER_META, useByokKey } from '@/features/settings/hooks/use-byok-key'
 import { useNotionConnection } from '@/features/settings/hooks/use-notion-connection'
 import { useAuthStore } from '@/lib/store'
+import { integrationsApi } from '@/lib/api'
 import { KeyRound, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
@@ -51,10 +52,13 @@ export function SettingsIntegrationsTab() {
 
   const [isDisconnectDialogOpen, setIsDisconnectDialogOpen] = useState(false)
 
-  const handleConnectNotion = () => {
-    if (!user?.id) return
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || ''
-    window.location.href = `${apiBaseUrl}/api/integrations/notion/connect?userId=${user.id}`
+  const handleConnectNotion = async () => {
+    try {
+      const res = await integrationsApi.getNotionConnectUrl()
+      window.location.href = res.data.url
+    } catch (err: any) {
+      toast.error('Failed to initiate Notion connection')
+    }
   }
 
   const handleDisconnectNotion = () => {

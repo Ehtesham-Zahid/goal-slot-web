@@ -902,5 +902,6 @@ export interface NotionStatusDto {
 
 export const integrationsApi = {
   getNotionStatus: () => api.get<NotionStatusDto>('/integrations/notion/status'),
+  getNotionConnectUrl: () => api.get<{ url: string }>('/integrations/notion/connect'),
   disconnectNotion: () => api.delete<{ success: boolean }>('/integrations/notion/disconnect'),
 }
