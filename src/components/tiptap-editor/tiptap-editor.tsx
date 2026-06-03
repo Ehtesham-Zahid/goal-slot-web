@@ -200,15 +200,69 @@ function handleListBackspace(ed: any, event: KeyboardEvent): boolean {
   return true
 }
 
+// Iterate over every list item in the current selection range and run
+// sinkListItem (or liftListItem) on each individually, from last to
+// first. Native sinkListItem operates on the block range computed from
+// $from..$to as a single wrap operation, which refuses if the first
+// item of the range is the first child of its parent list. That refusal
+// covers the WHOLE selection, leaving sinkable items unmoved. Iterating
+// in reverse order keeps positions before the current item valid as
+// we go. Returns true if any item moved.
+function sinkOrLiftMultiSelection(
+  ed: any,
+  itemType: 'listItem' | 'taskItem',
+  direction: 'sink' | 'lift',
+): boolean {
+  const state = ed.state
+  const { from, to } = state.selection
+
+  if (from === to) {
+    const cmd = direction === 'sink' ? 'sinkListItem' : 'liftListItem'
+    ed.chain().focus()[cmd](itemType).run()
+    return true
+  }
+
+  const positions: number[] = []
+  state.doc.nodesBetween(from, to, (node: any, pos: number) => {
+    if (node.type.name === itemType) {
+      positions.push(pos)
+      return false
+    }
+    return true
+  })
+
+  if (positions.length === 0) {
+    const cmd = direction === 'sink' ? 'sinkListItem' : 'liftListItem'
+    ed.chain().focus()[cmd](itemType).run()
+    return true
+  }
+
+  if (positions.length === 1) {
+    const cmd = direction === 'sink' ? 'sinkListItem' : 'liftListItem'
+    ed.chain().focus()[cmd](itemType).run()
+    return true
+  }
+
+  let moved = false
+  for (let i = positions.length - 1; i >= 0; i--) {
+    const pos = positions[i]
+    const cmd = direction === 'sink' ? 'sinkListItem' : 'liftListItem'
+    const ok = ed.chain().setTextSelection(pos + 1)[cmd](itemType).run()
+    if (ok) moved = true
+  }
+
+  ed.chain().setTextSelection({ from, to }).focus().run()
+  return moved
+}
+
 // Tab inside the editor.
 //
 //   - In a table: pass through (prosemirror-tables handles cell nav).
-//   - In a list: sinkListItem (Tab) or liftListItem (Shift+Tab). Native
-//     primitives handle multi-line selections and refuse cleanly when the
-//     item is the first child of its list.
-//   - Elsewhere (plain paragraph, heading): indentBlock / outdentBlock
-//     via IndentExtension, which itself refuses to apply indent when any
-//     ancestor is a list item, so callers don't need to special-case it.
+//   - In a list (single or multi-line selection): sink / lift via the
+//     per-item iteration above. Falls back to a no-op if no item can
+//     move (every selected item is already a first-child).
+//   - Elsewhere: indentBlock / outdentBlock via IndentExtension, which
+//     refuses internally when any ancestor is a list item.
 function handleEditorTab(ed: any, event: KeyboardEvent): boolean {
   if (ed.isActive('table')) return false
 
@@ -217,11 +271,7 @@ function handleEditorTab(ed: any, event: KeyboardEvent): boolean {
   const inList = findListItemAtCursor(ed.state)
   if (inList) {
     const { itemType } = inList
-    if (event.shiftKey) {
-      ed.chain().focus().liftListItem(itemType).run()
-    } else {
-      ed.chain().focus().sinkListItem(itemType).run()
-    }
+    sinkOrLiftMultiSelection(ed, itemType, event.shiftKey ? 'lift' : 'sink')
     return true
   }
 
