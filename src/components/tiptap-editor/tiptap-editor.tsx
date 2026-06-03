@@ -276,9 +276,34 @@ export function TiptapEditor({
       //      IndentExtension, which writes a data-indent attribute the
       //      CSS layer renders as padding-left.
       handleKeyDown: (_view, event) => {
-        if (event.key !== 'Tab') return false
         const ed = editorRef.current
         if (!ed) return false
+
+        // Backspace at the very start of a list item should unwrap the
+        // bullet (lift to parent list or to a paragraph if top level),
+        // not merge the text into the previous block. ProseMirror's
+        // default joinBackward behavior is what produces the "my bullet
+        // text just moved up into the heading above" behavior users
+        // run into. Only intercept when the selection is empty and the
+        // cursor sits at parentOffset 0 of a list item.
+        if (event.key === 'Backspace') {
+          const { selection } = ed.state
+          if (!selection.empty) return false
+          if (selection.$from.parentOffset !== 0) return false
+
+          const inTaskItem = ed.isActive('taskItem')
+          const inListItem = ed.isActive('listItem')
+          if (!inTaskItem && !inListItem) return false
+
+          const itemType = inTaskItem ? 'taskItem' : 'listItem'
+          if (!ed.can().liftListItem(itemType)) return false
+
+          event.preventDefault()
+          ed.chain().focus().liftListItem(itemType).run()
+          return true
+        }
+
+        if (event.key !== 'Tab') return false
 
         if (ed.isActive('table')) return false
 
