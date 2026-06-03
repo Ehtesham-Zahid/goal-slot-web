@@ -22,6 +22,8 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { common, createLowlight } from 'lowlight'
 import { TextSelection } from '@tiptap/pm/state'
+import Paragraph from '@tiptap/extension-paragraph'
+import Heading from '@tiptap/extension-heading'
 
 import './tiptap-editor.css'
 
@@ -66,6 +68,45 @@ import { SlashCommands } from './slash-commands'
 
 // Create lowlight instance with common languages
 const lowlight = createLowlight(common)
+
+// Notion-style wrapper-block paragraph + heading.
+//
+// Background: previous attempts to space adjacent paragraphs via CSS-only
+// rules failed because (a) the `.ProseMirror > p` selector did not match
+// paragraphs nested inside <li> (the `>` is a direct-child combinator),
+// and (b) inline style attributes added via HTMLAttributes were silently
+// erased on save round-trips by an over-aggressive normalizer regex.
+// Inline style on <p> is also defeated by an adversarial pasted
+// `style="line-height:0 !important"` payload landing on the same <p>.
+//
+// The fix here is the Notion/Roam pattern: every paragraph and heading
+// renders inside a wrapper <div class="gs-block">. Spacing lives on the
+// wrapper. The inner <p>/<h*> (the editable element) carries no spacing
+// CSS, so a paste payload can never reach the wrapper to defeat it.
+// parseHTML accepts BOTH the new wrapper shape AND the bare <p>/<h*>
+// shape — existing notes load byte-identical and editor.getHTML() emits
+// the wrapper on save. Both shapes round-trip cleanly.
+const GoalSlotParagraph = Paragraph.extend({
+  parseHTML() {
+    return [{ tag: 'div.gs-block > p', priority: 60 }, { tag: 'p' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['div', { class: 'gs-block gs-block-p' }, ['p', HTMLAttributes, 0]]
+  },
+})
+
+const GoalSlotHeading = Heading.extend({
+  parseHTML() {
+    return [1, 2, 3, 4, 5, 6].flatMap((level) => [
+      { tag: `div.gs-block > h${level}`, attrs: { level }, priority: 60 },
+      { tag: `h${level}`, attrs: { level } },
+    ])
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const level = node.attrs.level as number
+    return ['div', { class: `gs-block gs-block-h${level}` }, [`h${level}`, HTMLAttributes, 0]]
+  },
+})
 
 // Walks $from upward to find an ancestor list item. Single source of
 // truth for "are we in a list?" — used by both Tab and Backspace routing.
@@ -307,31 +348,15 @@ export function TiptapEditor({
     extensions: [
       StarterKit.configure({
         codeBlock: false, // We use CodeBlockLowlight instead
+        paragraph: false, // replaced by GoalSlotParagraph below
+        heading: false, // replaced by GoalSlotHeading below
         dropcursor: {
           color: '#FFCC00',
           width: 4,
         },
-        // Inline-style every paragraph and heading directly via Tiptap's
-        // HTMLAttributes config. Reason: CSS-only spacing rules in
-        // tiptap-editor.css were being defeated by a still-unidentified
-        // path (cache, Tailwind purge in some context, or an inline
-        // style from a paste payload landing with !important). Inline
-        // style attributes on the rendered node are inserted into the
-        // HTML directly by ProseMirror's renderer, so they survive the
-        // CSS cascade entirely and can never be missed.
-        paragraph: {
-          HTMLAttributes: {
-            style:
-              'padding-top:0.4em;padding-bottom:0.4em;line-height:1.55;min-height:1.5em;display:block;position:static;float:none;clear:none;',
-          },
-        },
-        heading: {
-          HTMLAttributes: {
-            style:
-              'padding-top:0.5em;padding-bottom:0.5em;line-height:1.4;display:block;position:static;float:none;clear:none;',
-          },
-        },
       }),
+      GoalSlotParagraph,
+      GoalSlotHeading.configure({ levels: [1, 2, 3] }),
       Placeholder.configure({
         placeholder: ({ node }) => {
           if (node.type.name === 'heading') {

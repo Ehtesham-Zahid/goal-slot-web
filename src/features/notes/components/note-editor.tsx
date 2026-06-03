@@ -130,13 +130,19 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
   const tiptapRef = useRef<{ commands: { focus: (pos?: 'end' | 'start') => any } } | null>(null)
   const [editorContent, setEditorContent] = useState(() => convertOldContentToHtml(note.content || ''))
 
-  // Update when note changes
+  // Re-seed editor content ONLY when the user switches to a different note
+  // (note.id changes). Do NOT include note.content in the deps: an autosave
+  // round-trip writes back to the cache, which would otherwise trigger this
+  // effect and overwrite whatever the user has typed since the save started
+  // (the "in-flight clobber" bug). The title can update from server fetches
+  // safely because it has its own debounce path.
   useEffect(() => {
     setTitle(note.title)
     setEditorContent(convertOldContentToHtml(note.content || ''))
     isInitialized.current = true
     noteIdRef.current = note.id
-  }, [note.id, note.title, note.content])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id])
 
   // Debounced auto-save for title
   const saveTitle = useCallback(

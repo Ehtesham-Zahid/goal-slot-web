@@ -156,75 +156,35 @@
   @apply leading-relaxed;
 }
 
-/* Defensive: pasted content from Word/Notion/Google Docs sometimes ships
-   block elements with inline line-height/height/position styles that
-   collapse the box so the next paragraph overlaps its predecessor's
-   wrap. The paste sanitizer strips these styles before parse, but even
-   if one slips through (and especially for notes saved before the
-   sanitizer existed), force every block-level descendant inside the
-   editor back to normal block flow with an explicit minimum height and
-   mandatory vertical margin so consecutive paragraphs can never visually
-   merge. The !important is required to beat inline style="..." values
-   that pasted Word/Notion HTML often ships with !important too — at
-   equal specificity, the latest !important rule wins, so this lives
-   below the per-element styling above on purpose. */
-.tiptap-editor .ProseMirror p,
-.tiptap-editor .ProseMirror li,
-.tiptap-editor .ProseMirror h1,
-.tiptap-editor .ProseMirror h2,
-.tiptap-editor .ProseMirror h3,
-.tiptap-editor .ProseMirror blockquote {
-  display: block !important;
-  line-height: 1.55 !important;
-  min-height: 1.5em !important;
-  position: static !important;
-  float: none !important;
-  clear: none !important;
-  vertical-align: baseline !important;
-  white-space: normal !important;
-  pointer-events: auto !important;
-  cursor: text !important;
+/* Notion-style wrapper-block spacing. The Paragraph and Heading
+   extensions emit `<div class="gs-block"><p>...` and `<div class="gs-block"><h*>...`.
+   Spacing lives on the wrapper. The inner editable element carries no
+   spacing CSS, so a paste payload (which lands on the inner element)
+   can never reach the wrapper to defeat the rules. No !important is
+   needed: the wrapper class is owned by our renderHTML and nothing in
+   a paste payload can target it. */
+.tiptap-editor .ProseMirror .gs-block {
+  padding-top: 0.45em;
+  padding-bottom: 0.45em;
 }
-
-/* Use padding instead of margin for the vertical gap between top-level
-   blocks: padding does NOT collapse between adjacent siblings, so two
-   consecutive paragraphs are guaranteed to have visible vertical
-   separation regardless of any margin-collapsing rules the cascade
-   inherits from a paste payload. Paragraph A's padding-bottom and B's
-   padding-top stack as 0.4em + 0.4em = 0.8em, always visible. */
-.tiptap-editor .ProseMirror > p,
-.tiptap-editor .ProseMirror > h1,
-.tiptap-editor .ProseMirror > h2,
-.tiptap-editor .ProseMirror > h3,
-.tiptap-editor .ProseMirror > blockquote {
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  padding-top: 0.4em !important;
-  padding-bottom: 0.4em !important;
+.tiptap-editor .ProseMirror .gs-block:first-child {
+  padding-top: 0;
 }
-
-.tiptap-editor .ProseMirror > p:first-child,
-.tiptap-editor .ProseMirror > h1:first-child,
-.tiptap-editor .ProseMirror > h2:first-child,
-.tiptap-editor .ProseMirror > h3:first-child,
-.tiptap-editor .ProseMirror > blockquote:first-child {
-  padding-top: 0 !important;
+.tiptap-editor .ProseMirror .gs-block:last-child {
+  padding-bottom: 0;
 }
-
-/* Inline children inside a paragraph (links, spans, em, strong) must
-   stay inline so they don't push the paragraph's baseline. */
-.tiptap-editor .ProseMirror p > a,
-.tiptap-editor .ProseMirror p > span,
-.tiptap-editor .ProseMirror p > em,
-.tiptap-editor .ProseMirror p > strong,
-.tiptap-editor .ProseMirror p > code,
-.tiptap-editor .ProseMirror p > mark,
-.tiptap-editor .ProseMirror p > u,
-.tiptap-editor .ProseMirror p > s {
-  display: inline !important;
-  position: static !important;
-  float: none !important;
-  vertical-align: baseline !important;
+/* Tighter inside list items so a wrapped paragraph + adjacent bullet
+   doesn't look glued, but consecutive bullets stay compact. */
+.tiptap-editor .ProseMirror li .gs-block {
+  padding-top: 0.15em;
+  padding-bottom: 0.15em;
+}
+/* Inner editable element carries no margin (the wrapper owns spacing). */
+.tiptap-editor .ProseMirror .gs-block > p,
+.tiptap-editor .ProseMirror .gs-block > h1,
+.tiptap-editor .ProseMirror .gs-block > h2,
+.tiptap-editor .ProseMirror .gs-block > h3 {
+  margin: 0;
 }
 
 /* Lists */
