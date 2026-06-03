@@ -338,6 +338,32 @@ export function TiptapEditor({
           // refuses (e.g. first child of its list, top-level item), we
           // swallow Tab so the browser doesn't shift focus out of the
           // editor, but we make no further change.
+
+          // Detect whether the selection spans more than one list item
+          // of the active type. If it does, hand off to ProseMirror's
+          // native sink/lift so all selected items move together as a
+          // group — the parent-only wrapper below only makes sense for
+          // a single-item cursor, and trying to apply it to a range
+          // ends up only sinking the first item and lifting only that
+          // first item's children, leaving the rest of the selection
+          // unmoved (which is the user-visible "Tab does nothing on a
+          // multi-line selection" bug).
+          const { from: selFrom, to: selTo } = ed.state.selection
+          const itemPositions = new Set<number>()
+          ed.state.doc.nodesBetween(selFrom, selTo, (node, pos) => {
+            if (node.type.name === itemType) itemPositions.add(pos)
+          })
+          const isMultiItem = itemPositions.size > 1
+
+          if (isMultiItem) {
+            if (event.shiftKey) {
+              ed.chain().focus().liftListItem(itemType).run()
+            } else {
+              ed.chain().focus().sinkListItem(itemType).run()
+            }
+            return true
+          }
+
           if (event.shiftKey) {
             const lifted = ed.can().liftListItem(itemType)
             if (lifted) {
