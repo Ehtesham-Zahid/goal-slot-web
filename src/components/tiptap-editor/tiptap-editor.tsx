@@ -197,6 +197,22 @@ export function TiptapEditor({
               div.replaceWith(p)
             }
           })
+          // Strip layout-only inline styles (padding, margin, text-indent)
+          // from every element. These survive a copy from Notion / Word /
+          // Google Docs and would otherwise render as a huge gap between
+          // bullet markers and text once parsed by ProseMirror.
+          const layoutStyleRe = /\s*(padding|margin|text-indent)[\w-]*\s*:[^;]+;?/gi
+          doc.querySelectorAll('[style]').forEach((el) => {
+            const before = el.getAttribute('style') || ''
+            const after = before.replace(layoutStyleRe, '').trim()
+            if (!after) el.removeAttribute('style')
+            else el.setAttribute('style', after)
+          })
+          // Also strip our own data-indent attribute on any node that lives
+          // inside a list item, mirroring the runtime CSS guard.
+          doc.querySelectorAll('li [data-indent]').forEach((el) => {
+            el.removeAttribute('data-indent')
+          })
           cleaned = doc.body.innerHTML
         } catch {
           // If parsing throws (very malformed HTML), fall back to the
@@ -314,12 +330,20 @@ export function TiptapEditor({
 
         if (inTaskItem || inListItem) {
           const itemType = inTaskItem ? 'taskItem' : 'listItem'
+          // Inside a list item we *only* sink / lift. We never fall
+          // through to indentBlock, because that would write a
+          // data-indent attribute onto the <p> nested inside the <li>,
+          // which then renders as a huge gap between the bullet and the
+          // text (and stacks on every Tab press). When sink / lift
+          // refuses (e.g. first child of its list, top-level item), we
+          // swallow Tab so the browser doesn't shift focus out of the
+          // editor, but we make no further change.
           if (event.shiftKey) {
             const lifted = ed.can().liftListItem(itemType)
             if (lifted) {
               ed.chain().focus().liftListItem(itemType).run()
-              return true
             }
+            return true
           } else {
             const sunk = ed.can().sinkListItem(itemType)
             if (sunk) {
@@ -396,8 +420,10 @@ export function TiptapEditor({
                   .run()
               }
               ed.chain().setTextSelection(parentCursor).run()
-              return true
             }
+            // Whether sink succeeded or not, swallow Tab so we never
+            // fall through to indentBlock from inside a list item.
+            return true
           }
         }
 

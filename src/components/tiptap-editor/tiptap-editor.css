@@ -223,6 +223,15 @@
 .tiptap-editor .ProseMirror [data-indent="5"] { margin-left: 10rem; }
 .tiptap-editor .ProseMirror [data-indent="6"] { margin-left: 12rem; }
 
+/* Defensive: a paragraph that lives inside a list item should never
+   carry block indent. Bullets express indent structurally; an inline
+   data-indent (left over from a paste, a legacy note, or an earlier bug
+   that fell through to indentBlock from a list-item Tab) just produces
+   a huge gap between the bullet marker and the text. Force-zero it. */
+.tiptap-editor .ProseMirror li [data-indent] {
+  margin-left: 0;
+}
+
 .tiptap-editor .ProseMirror .task-list .task-list {
   @apply pl-6 mt-1;
 }
