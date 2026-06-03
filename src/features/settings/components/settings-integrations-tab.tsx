@@ -161,7 +161,7 @@ export function SettingsIntegrationsTab() {
         <SectionHeader
           title={
             <span className="flex items-center gap-2">
-              <span className="h-5 w-5 bg-zinc-900 text-white rounded flex items-center justify-center font-bold text-[10px]">N</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-zinc-900 text-[10px] font-bold text-white">N</span>
               Notion Integration
             </span>
           }
@@ -181,21 +181,21 @@ export function SettingsIntegrationsTab() {
         </p>
 
         {notionLoading ? (
-          <div className="flex items-center justify-center p-6 bg-zinc-50 border border-zinc-200 rounded-lg">
+          <div className="flex items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-6">
             <Loading className="h-5 w-5" />
           </div>
         ) : notionStatus.connected ? (
-          <div className="flex flex-col gap-4 bg-zinc-50 border border-zinc-200 rounded-lg p-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
             <div className="flex items-center gap-3">
               {notionStatus.workspaceIcon ? (
                 <img src={notionStatus.workspaceIcon} alt="Workspace Icon" className="h-8 w-8 rounded object-cover" />
               ) : (
-                <div className="h-8 w-8 bg-zinc-800 text-white font-bold flex items-center justify-center rounded">
+                <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-800 font-bold text-white">
                   {notionStatus.workspaceName?.charAt(0) || 'N'}
                 </div>
               )}
               <div>
-                <h4 className="font-semibold text-sm text-zinc-900">{notionStatus.workspaceName}</h4>
+                <h4 className="text-sm font-semibold text-zinc-900">{notionStatus.workspaceName}</h4>
                 <p className="text-xs text-zinc-500">
                   Connected on {notionStatus.connectedAt ? new Date(notionStatus.connectedAt).toLocaleDateString() : 'N/A'}
                 </p>
@@ -207,7 +207,7 @@ export function SettingsIntegrationsTab() {
               size="sm"
               onClick={handleDisconnectNotion}
               disabled={notionDisconnecting}
-              className="w-full text-rose-600 hover:text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-100/50 mt-2"
+              className="mt-2 w-full border border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100/50 hover:text-rose-700"
             >
               Disconnect Notion
             </Button>
