@@ -22,19 +22,15 @@ export function useNotionConnection() {
       await integrationsApi.disconnectNotion()
     },
     onSuccess: () => {
-      queryClient.setQueryData<NotionStatusDto>(QUERY_KEY, {
-        connected: false,
-        workspaceName: null,
-        workspaceIcon: null,
-        connectedAt: null,
-      })
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
     },
   })
 
   const disconnect = useCallback(() => {
-    return disconnectMutation.mutateAsync().catch(() => {
-      // best-effort
-    })
+    return disconnectMutation.mutateAsync()
   }, [disconnectMutation])
 
   return {

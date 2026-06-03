@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 
 import { ByokProvider, PROVIDER_META, useByokKey } from '@/features/settings/hooks/use-byok-key'
 import { useNotionConnection } from '@/features/settings/hooks/use-notion-connection'
-import { useAuthStore } from '@/lib/store'
 import { integrationsApi } from '@/lib/api'
 import { KeyRound, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -35,11 +34,14 @@ const PROVIDERS: ByokProvider[] = ['gemini', 'openrouter', 'openai', 'anthropic'
 export function SettingsIntegrationsTab() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { user } = useAuthStore()
   const { status: notionStatus, isLoading: notionLoading, isPending: notionDisconnecting, disconnect: disconnectNotion } = useNotionConnection()
+  const handled = useRef(false)
 
   useEffect(() => {
+    if (handled.current) return
     const notionResult = searchParams.get('notion')
+    if (!notionResult) return
+    handled.current = true
     if (notionResult === 'connected') {
       toast.success('Notion workspace connected successfully!')
       router.replace('/dashboard/settings?tab=integrations', { scroll: false })
@@ -66,9 +68,13 @@ export function SettingsIntegrationsTab() {
   }
 
   const handleConfirmDisconnect = async () => {
-    await disconnectNotion()
-    toast.success('Notion disconnected')
-    setIsDisconnectDialogOpen(false)
+    try {
+      await disconnectNotion()
+      toast.success('Notion disconnected')
+      setIsDisconnectDialogOpen(false)
+    } catch {
+      toast.error('Failed to disconnect Notion. Please try again.')
+    }
   }
 
   const {
@@ -171,7 +177,7 @@ export function SettingsIntegrationsTab() {
         />
 
         <p className="mb-4 text-sm text-zinc-600">
-          Connect your Notion workspace to pull select Notion pages into GoalSlot as reference material and push your notes and journal entries out to your Notion database.
+          Connect your Notion workspace. Once connected, you will be able to push your notes to Notion and pull reference pages into the Coach. Coming soon.
         </p>
 
         {notionLoading ? (
