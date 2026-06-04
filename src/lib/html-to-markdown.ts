@@ -59,7 +59,7 @@ interface NoteFrontmatterInput {
 }
 
 function escapeYamlString(value: string): string {
-  return value.replace(/\//g, '\\/').replace(/"/g, '\\"').replace(/\n/g, '\n').replace(/\r/g, '\r')
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r')
 }
 
 export function buildNoteMarkdown(note: NoteFrontmatterInput, html: string): string {
