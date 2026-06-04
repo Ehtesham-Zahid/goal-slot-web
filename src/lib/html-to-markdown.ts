@@ -44,14 +44,12 @@ export function htmlToMarkdown(html: string): string {
 }
 
 function slugifyFilename(value: string): string {
-  return (
-    value
-      .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'note'
-  )
+  return value
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 interface NoteFrontmatterInput {
