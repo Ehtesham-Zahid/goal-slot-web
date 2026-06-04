@@ -1,15 +1,20 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 
-import { updateWhiteboard } from '@/lib/api/whiteboards'
+import { updateWhiteboard, updateWhiteboardKeepalive } from '@/lib/api/whiteboards'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 import { WHITEBOARDS_QUERY_KEY } from './hooks/use-whiteboards'
+import {
+  clearWhiteboardDraft,
+  resolveWhiteboardScene,
+  saveWhiteboardDraft,
+} from './whiteboard-draft'
 import type { ExcalidrawScene, Whiteboard } from './types'
 
 const ExcalidrawCanvasInner = dynamic(
@@ -22,10 +27,13 @@ const ExcalidrawCanvasInner = dynamic(
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
+export type FlushWhiteboardSave = () => Promise<void>
+
 interface WhiteboardCanvasProps {
   whiteboardId: string
   initialData: ExcalidrawScene | null
   readOnly: boolean
+  onRegisterFlush?: (flush: FlushWhiteboardSave | null) => void
 }
 
 interface ExcalidrawAppStateSlice {
@@ -65,17 +73,17 @@ function buildScene(
 }
 
 function toInitialData(initialData: ExcalidrawScene | null) {
-  if (!initialData) {
+  if (!initialData?.elements?.length) {
     return {
       elements: [],
       appState: { collaborators: new Map() },
-      files: {},
+      files: initialData?.files ?? {},
     }
   }
   return {
     elements: initialData.elements as any,
     appState: {
-      ...initialData.appState,
+      ...(initialData.appState ?? {}),
       collaborators: new Map(),
     },
     files: (initialData.files ?? {}) as any,
@@ -89,7 +97,12 @@ const UI_OPTIONS = {
   },
 } as const
 
-function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({
+  whiteboardId,
+  initialData,
+  readOnly,
+  onRegisterFlush,
+}: WhiteboardCanvasProps) {
   const isMobile = useIsMobile()
   const pathname = usePathname()
   const forceViewOnly = isMobile && !readOnly
@@ -106,11 +119,13 @@ function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: Whit
   const excalidrawAPIRef = useRef<any>(null)
   const isReadyRef = useRef(false)
   const lastPersistedHashRef = useRef<string | null>(null)
+  const latestSceneRef = useRef<ExcalidrawScene | null>(null)
 
   useEffect(() => {
     whiteboardIdRef.current = whiteboardId
     isReadyRef.current = false
     lastPersistedHashRef.current = null
+    latestSceneRef.current = null
   }, [whiteboardId])
 
   useEffect(() => {
@@ -124,30 +139,41 @@ function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: Whit
     })
   }, [])
 
-  const excalidrawInitialData = useMemo(() => toInitialData(initialData), [whiteboardId])
+  const excalidrawInitialData = useMemo(() => {
+    const scene = resolveWhiteboardScene(whiteboardId, initialData)
+    return toInitialData(scene)
+  }, [whiteboardId, initialData])
 
-  const patchListCache = useCallback(
+  const patchCaches = useCallback(
     (targetId: string, scene: ExcalidrawScene) => {
       queryClient.setQueryData<Whiteboard[]>(WHITEBOARDS_QUERY_KEY, (prev) => {
         if (!prev) return prev
         return prev.map((w) => (w.id === targetId ? { ...w, content: scene } : w))
       })
+      queryClient.setQueryData<{ whiteboard: Whiteboard; readOnly: boolean }>(
+        [...WHITEBOARDS_QUERY_KEY, targetId],
+        (prev) => {
+          if (!prev) return prev
+          return { ...prev, whiteboard: { ...prev.whiteboard, content: scene } }
+        },
+      )
     },
     [queryClient],
   )
 
   const persistScene = useCallback(
-    async (scene: ExcalidrawScene, targetId: string, options?: { silent?: boolean }) => {
+    async (scene: ExcalidrawScene, targetId: string, options?: { silent?: boolean; force?: boolean }) => {
       if (readOnlyRef.current) return
 
       const hash = JSON.stringify(scene)
-      if (hash === lastPersistedHashRef.current) return
+      if (!options?.force && hash === lastPersistedHashRef.current) return
 
       if (!options?.silent) setSaveStatus('saving')
       try {
         await updateWhiteboard(targetId, { content: scene })
         lastPersistedHashRef.current = hash
-        patchListCache(targetId, scene)
+        clearWhiteboardDraft(targetId)
+        patchCaches(targetId, scene)
         if (!options?.silent) {
           setSaveStatus('saved')
           if (savedHideTimerRef.current) clearTimeout(savedHideTimerRef.current)
@@ -157,20 +183,29 @@ function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: Whit
         if (!options?.silent) setSaveStatus('error')
       }
     },
-    [patchListCache],
+    [patchCaches],
   )
 
-  const saveFromApi = useCallback(
-    (targetId: string, options?: { silent?: boolean }) => {
-      const api = excalidrawAPIRef.current
-      if (!api || readOnlyRef.current) return
-      const elements = api.getSceneElements()
-      const appState = api.getAppState()
-      const files = api.getFiles()
-      void persistScene(buildScene(elements, appState, files), targetId, options)
-    },
-    [persistScene],
-  )
+  const getSceneFromApi = useCallback((): ExcalidrawScene | null => {
+    const api = excalidrawAPIRef.current
+    if (!api) return latestSceneRef.current
+    return buildScene(api.getSceneElements(), api.getAppState(), api.getFiles())
+  }, [])
+
+  const flushSave = useCallback(async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
+    const scene = getSceneFromApi()
+    if (!scene || readOnlyRef.current) return
+    await persistScene(scene, whiteboardIdRef.current, { silent: true, force: true })
+  }, [getSceneFromApi, persistScene])
+
+  useEffect(() => {
+    onRegisterFlush?.(flushSave)
+    return () => onRegisterFlush?.(null)
+  }, [flushSave, onRegisterFlush])
 
   const handleChange = useCallback(
     (elements: readonly unknown[], appState: unknown, files: unknown) => {
@@ -182,6 +217,8 @@ function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: Whit
         appState as Record<string, unknown>,
         files as Record<string, unknown>,
       )
+      latestSceneRef.current = scene
+      saveWhiteboardDraft(whiteboardIdRef.current, scene)
 
       const isDragging =
         typeof appState === 'object' &&
@@ -216,23 +253,36 @@ function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: Whit
   useEffect(() => {
     const idAtMount = whiteboardId
     return () => {
-      saveFromApi(idAtMount, { silent: true })
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+      const scene = latestSceneRef.current ?? getSceneFromApi()
+      if (scene && !readOnlyRef.current) {
+        updateWhiteboardKeepalive(idAtMount, scene)
+        void persistScene(scene, idAtMount, { silent: true, force: true }).catch(() => {})
+      }
     }
-  }, [whiteboardId, saveFromApi])
+  }, [whiteboardId, getSceneFromApi, persistScene])
 
   useEffect(() => {
-    const saveImmediately = () => saveFromApi(whiteboardIdRef.current, { silent: true })
-    window.addEventListener('beforeunload', saveImmediately)
-    return () => window.removeEventListener('beforeunload', saveImmediately)
-  }, [saveFromApi])
+    const saveOnPageUnload = () => {
+      const scene = latestSceneRef.current ?? getSceneFromApi()
+      if (scene && !readOnlyRef.current) {
+        updateWhiteboardKeepalive(whiteboardIdRef.current, scene)
+      }
+    }
+    window.addEventListener('beforeunload', saveOnPageUnload)
+    return () => window.removeEventListener('beforeunload', saveOnPageUnload)
+  }, [getSceneFromApi])
 
   const prevPathRef = useRef(pathname)
   useEffect(() => {
     if (prevPathRef.current !== pathname) {
-      saveFromApi(whiteboardIdRef.current, { silent: true })
+      void flushSave()
       prevPathRef.current = pathname
     }
-  }, [pathname, saveFromApi])
+  }, [pathname, flushSave])
 
   useEffect(() => {
     return () => {
@@ -277,9 +327,3 @@ function WhiteboardCanvasComponent({ whiteboardId, initialData, readOnly }: Whit
     </div>
   )
 }
-
-/** Ignore cache-driven initialData updates while the same board is open. */
-export const WhiteboardCanvas = memo(
-  WhiteboardCanvasComponent,
-  (prev, next) => prev.whiteboardId === next.whiteboardId && prev.readOnly === next.readOnly,
-)

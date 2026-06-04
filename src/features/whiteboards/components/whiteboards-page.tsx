@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Loading } from '@/components/ui/loading'
 
-import { WhiteboardCanvas } from '../WhiteboardCanvas'
+import { WhiteboardCanvas, type FlushWhiteboardSave } from '../WhiteboardCanvas'
+import { resolveWhiteboardScene } from '../whiteboard-draft'
 import {
   useWhiteboardQuery,
   useSharedWhiteboardsQuery,
@@ -45,6 +46,10 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
   const sharedReadOnly = sharedFetch.data?.readOnly ?? true
 
   const { data: sharedList = [] } = useSharedWhiteboardsQuery()
+
+  const ownedWhiteboardId = selectedShared ? null : selectedWhiteboard?.id ?? null
+  const ownedFetch = useWhiteboardQuery(ownedWhiteboardId)
+  const flushCanvasSaveRef = useRef<FlushWhiteboardSave | null>(null)
 
   const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -96,12 +101,20 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
     prevCreatingRef.current = isCreating
   }, [isCreating, selectedWhiteboard])
 
-  const handleSelectOwned = (wb: Parameters<typeof selectWhiteboard>[0]) => {
+  useEffect(() => {
+    return () => {
+      void flushCanvasSaveRef.current?.()
+    }
+  }, [])
+
+  const handleSelectOwned = async (wb: Parameters<typeof selectWhiteboard>[0]) => {
+    await flushCanvasSaveRef.current?.()
     setSelectedShared(null)
     selectWhiteboard(wb)
   }
 
-  const handleSelectShared = (summary: SharedWithMeItem) => {
+  const handleSelectShared = async (summary: SharedWithMeItem) => {
+    await flushCanvasSaveRef.current?.()
     setSelectedShared(summary)
   }
 
@@ -152,10 +165,13 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
           />
           <div className="min-h-0 flex-1">
             <WhiteboardCanvas
-            key={sharedWhiteboard.id}
+              key={sharedWhiteboard.id}
               whiteboardId={sharedWhiteboard.id}
               initialData={sharedWhiteboard.content}
               readOnly={sharedReadOnly}
+              onRegisterFlush={(fn) => {
+                flushCanvasSaveRef.current = fn
+              }}
             />
           </div>
         </div>
@@ -177,18 +193,40 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
       )
     }
   } else if (selectedWhiteboard) {
+    const displayWhiteboard = ownedFetch.data?.whiteboard ?? selectedWhiteboard
+    const resolvedContent = resolveWhiteboardScene(
+      displayWhiteboard.id,
+      displayWhiteboard.content,
+    )
+    const hasElements = (resolvedContent?.elements?.length ?? 0) > 0
+    const waitingForServer =
+      !!ownedWhiteboardId &&
+      ownedFetch.isFetching &&
+      !hasElements &&
+      !resolveWhiteboardScene(selectedWhiteboard.id, selectedWhiteboard.content)?.elements?.length
+
     mainContent = (
       <div key={selectedWhiteboard.id} className="flex h-full flex-col">
         <WhiteboardHeader
-          whiteboard={selectedWhiteboard}
-          autoFocusTitle={focusTitleId === selectedWhiteboard.id}
+          whiteboard={displayWhiteboard}
+          autoFocusTitle={focusTitleId === displayWhiteboard.id}
         />
         <div className="min-h-0 flex-1">
-          <WhiteboardCanvas
-            whiteboardId={selectedWhiteboard.id}
-            initialData={selectedWhiteboard.content}
-            readOnly={false}
-          />
+          {waitingForServer ? (
+            <div className="flex h-full items-center justify-center">
+              <Loading size="md" />
+            </div>
+          ) : (
+            <WhiteboardCanvas
+              key={displayWhiteboard.id}
+              whiteboardId={displayWhiteboard.id}
+              initialData={resolvedContent}
+              readOnly={false}
+              onRegisterFlush={(fn) => {
+                flushCanvasSaveRef.current = fn
+              }}
+            />
+          )}
         </div>
       </div>
     )

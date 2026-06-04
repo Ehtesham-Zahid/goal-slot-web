@@ -51,6 +51,38 @@ export async function updateWhiteboard(
   return updated as Whiteboard
 }
 
+/** Best-effort save during page unload (fetch keepalive, ~64 KB limit). Never throws. */
+export function updateWhiteboardKeepalive(
+  id: string,
+  content: ExcalidrawScene,
+): void {
+  if (typeof window === 'undefined') return
+  const token = localStorage.getItem('accessToken')
+  if (!token || !API_URL) return
+
+  const body = JSON.stringify({ content })
+  if (body.length > 60_000) return
+
+  let url: string
+  try {
+    url = new URL(`/api/whiteboards/${encodeURIComponent(id)}`, API_URL).href
+  } catch {
+    return
+  }
+
+  fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    // Network/CORS failures are expected during unload; session draft is the fallback.
+  })
+}
+
 export async function deleteWhiteboard(id: string): Promise<void> {
   await api.delete(`/whiteboards/${id}`)
 }

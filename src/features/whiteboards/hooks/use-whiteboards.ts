@@ -32,6 +32,8 @@ export function useWhiteboardQuery(id: string | null) {
       return data as { whiteboard: Whiteboard; readOnly: boolean }
     },
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 
