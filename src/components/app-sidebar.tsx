@@ -11,6 +11,7 @@ import {
   Clock,
   Download,
   LayoutDashboard,
+  LayoutGrid,
   Megaphone,
   MessageSquare,
   Share2,
@@ -59,6 +60,7 @@ const navItems = [
   { href: '/dashboard/coach', label: 'GoalSlot AI', icon: CoachIcon },
   // Auxiliary surfaces.
   { href: '/dashboard/notes', label: 'Notes', icon: NotebookIcon },
+  { href: '/dashboard/whiteboards', label: 'Whiteboards', icon: LayoutGrid },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
   { href: '/dashboard/reports/export', label: 'Export Reports', icon: Download },
   { href: '/dashboard/sharing', label: 'Sharing', icon: Share2 },
