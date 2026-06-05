@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 
 import { ByokProvider, PROVIDER_META, useByokKey } from '@/features/settings/hooks/use-byok-key'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNotionConnection } from '@/features/settings/hooks/use-notion-connection'
 import { integrationsApi } from '@/lib/api'
+import { NotionTargetPicker } from '@/features/settings/components/notion-target-picker'
 import { KeyRound, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
@@ -34,6 +36,7 @@ const PROVIDERS: ByokProvider[] = ['gemini', 'openrouter', 'openai', 'anthropic'
 export function SettingsIntegrationsTab() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { status: notionStatus, isLoading: notionLoading, isPending: notionDisconnecting, disconnect: disconnectNotion } = useNotionConnection()
   const handled = useRef(false)
 
@@ -42,15 +45,21 @@ export function SettingsIntegrationsTab() {
     const notionResult = searchParams.get('notion')
     if (!notionResult) return
     handled.current = true
-    if (notionResult === 'connected') {
-      toast.success('Notion workspace connected successfully!')
+    if (notionResult === 'connected' || notionResult === 'updated') {
+      const successMessage =
+        notionResult === 'connected'
+          ? 'Notion workspace connected successfully!'
+          : 'Notion permitted pages updated successfully!'
+      toast.success(successMessage)
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'notion'] })
+      queryClient.invalidateQueries({ queryKey: ['integrations', 'notion', 'index'] })
       router.replace('/dashboard/settings?tab=integrations', { scroll: false })
     } else if (notionResult === 'error') {
       const msg = searchParams.get('message') || 'Connection failed'
       toast.error(`Notion connection failed: ${msg}`)
       router.replace('/dashboard/settings?tab=integrations', { scroll: false })
     }
-  }, [searchParams, router])
+  }, [searchParams, router, queryClient])
 
   const [isDisconnectDialogOpen, setIsDisconnectDialogOpen] = useState(false)
 
@@ -201,7 +210,9 @@ export function SettingsIntegrationsTab() {
                 </p>
               </div>
             </div>
-            
+
+            <NotionTargetPicker />
+
             <Button
               variant="ghost"
               size="sm"
