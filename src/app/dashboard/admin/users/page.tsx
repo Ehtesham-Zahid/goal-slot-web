@@ -455,7 +455,26 @@ export default function AdminUsersPage() {
             className="w-full border border-zinc-200 py-3 pl-12 pr-4 font-medium focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        
+
+        <label className="flex shrink-0 items-center gap-2 text-xs font-bold uppercase">
+          Per page
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value))
+              setCurrentPage(1)
+              setSelectedUsers([])
+            }}
+            className="border border-zinc-200 bg-white px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={200}>200</option>
+            <option value={500}>500</option>
+          </select>
+        </label>
+
         {selectedUsers.length > 0 && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
