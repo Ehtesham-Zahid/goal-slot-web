@@ -8,7 +8,12 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { useTemplate } from '../hooks'
-import { CATEGORY_LABEL, type TemplateScheduleBlock } from '../types'
+import {
+  CATEGORY_LABEL,
+  type TemplateGoal,
+  type TemplateScheduleBlock,
+  type TemplateTask,
+} from '../types'
 import { ImportDialog } from './import-dialog'
 
 // Markdown styling tuned to match the rest of the app's typography. Lifted
@@ -63,6 +68,34 @@ const markdownComponents: Components = {
 }
 
 const DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// Group tasks by goal, preserving the goal order from the template (so the
+// detail page renders sections in the same order the curator wrote them).
+// Tasks whose goalRef does not resolve fall into an "unlinked" bucket at the
+// end so they are still visible.
+function groupTasksByGoal(
+  goals: TemplateGoal[],
+  tasks: TemplateTask[],
+): { goal: TemplateGoal | null; tasks: TemplateTask[] }[] {
+  const byRef = new Map<string, TemplateTask[]>()
+  const unlinked: TemplateTask[] = []
+  for (const t of tasks) {
+    if (t.goalRef && goals.some((g) => g.ref === t.goalRef)) {
+      const arr = byRef.get(t.goalRef) ?? []
+      arr.push(t)
+      byRef.set(t.goalRef, arr)
+    } else {
+      unlinked.push(t)
+    }
+  }
+  const out: { goal: TemplateGoal | null; tasks: TemplateTask[] }[] = []
+  for (const g of goals) {
+    const arr = byRef.get(g.ref)
+    if (arr && arr.length > 0) out.push({ goal: g, tasks: arr })
+  }
+  if (unlinked.length > 0) out.push({ goal: null, tasks: unlinked })
+  return out
+}
 
 interface TemplateDetailPageProps {
   templateId: string
@@ -282,34 +315,55 @@ export function TemplateDetailPage({ templateId }: TemplateDetailPageProps) {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
             Starter tasks
           </h2>
-          <div className="space-y-1.5 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-            {template.tasks.map((t, i) => {
-              const goal = template.goals?.find((g) => g.ref === t.goalRef)
-              return (
+          <div className="space-y-3">
+            {groupTasksByGoal(template.goals ?? [], template.tasks).map(
+              ({ goal, tasks }) => (
                 <div
-                  key={`${t.title}-${i}`}
-                  className="flex items-start gap-2 border-b border-zinc-100 py-1.5 last:border-b-0"
+                  key={goal?.ref ?? 'unlinked'}
+                  className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm"
                 >
-                  <CheckSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                  <span className="min-w-0 flex-1 text-sm text-zinc-800">
-                    {t.title}
-                  </span>
-                  {goal && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600"
-                      title={goal.title}
-                    >
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: goal.color }}
-                        aria-hidden
-                      />
-                      {goal.title}
-                    </span>
-                  )}
+                  <header className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/60 px-3 py-2">
+                    {goal ? (
+                      <>
+                        <span
+                          className="h-3 w-3 shrink-0 rounded-full"
+                          style={{ backgroundColor: goal.color }}
+                          aria-hidden
+                        />
+                        <span className="text-[12px] font-bold uppercase tracking-wider text-zinc-800">
+                          {goal.title}
+                        </span>
+                        <span className="text-[11px] text-zinc-500">
+                          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[12px] font-bold uppercase tracking-wider text-zinc-500">
+                        Unlinked
+                      </span>
+                    )}
+                  </header>
+                  <ul className="divide-y divide-zinc-100">
+                    {tasks.map((t, i) => (
+                      <li
+                        key={`${t.title}-${i}`}
+                        className="flex items-start gap-2 px-3 py-2"
+                      >
+                        <CheckSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-zinc-800">{t.title}</div>
+                          {t.description && (
+                            <div className="mt-0.5 break-words text-[11px] leading-relaxed text-zinc-500">
+                              {t.description}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              )
-            })}
+              ),
+            )}
           </div>
         </section>
       )}

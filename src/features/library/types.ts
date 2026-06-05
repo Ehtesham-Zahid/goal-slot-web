@@ -62,6 +62,7 @@ export interface TemplateImportOptions {
   schedule: boolean
   goals: boolean
   tasks: boolean
+  replaceExisting?: boolean
 }
 
 export interface TemplateImportResult {
