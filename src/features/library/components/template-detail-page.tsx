@@ -4,10 +4,63 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 
 import { ArrowLeft, CalendarDays, CheckSquare, Flag, Loader2, Sparkles } from 'lucide-react'
+import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { useTemplate } from '../hooks'
 import { CATEGORY_LABEL, type TemplateScheduleBlock } from '../types'
 import { ImportDialog } from './import-dialog'
+
+// Markdown styling tuned to match the rest of the app's typography. Lifted
+// from the Coach markdown renderer so the long-description for a template
+// reads the same as Coach narrative output.
+const markdownComponents: Components = {
+  p: ({ children }) => (
+    <p className="my-2 leading-relaxed first:mt-0 last:mb-0">{children}</p>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-zinc-900">{children}</strong>
+  ),
+  em: ({ children }) => <em className="italic">{children}</em>,
+  ul: ({ children }) => (
+    <ul className="my-2 list-disc space-y-1 pl-5 marker:text-zinc-400 first:mt-0 last:mb-0">
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-2 list-decimal space-y-1 pl-5 marker:text-zinc-400 first:mt-0 last:mb-0">
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => (
+    <li className="leading-relaxed [&>p]:my-0">{children}</li>
+  ),
+  h1: ({ children }) => (
+    <h3 className="mb-2 mt-3 text-base font-semibold text-zinc-900 first:mt-0">
+      {children}
+    </h3>
+  ),
+  h2: ({ children }) => (
+    <h3 className="mb-2 mt-3 text-base font-semibold text-zinc-900 first:mt-0">
+      {children}
+    </h3>
+  ),
+  h3: ({ children }) => (
+    <h4 className="mb-1.5 mt-3 text-sm font-semibold uppercase tracking-wider text-zinc-500 first:mt-0">
+      {children}
+    </h4>
+  ),
+  a: ({ href, children }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#8a7307] underline decoration-[#f2cc0d] decoration-2 underline-offset-2 hover:text-[#6b5905]"
+    >
+      {children}
+    </a>
+  ),
+}
 
 const DAY_NAME = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -136,7 +189,11 @@ export function TemplateDetailPage({ templateId }: TemplateDetailPageProps) {
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
             About this template
           </div>
-          <div className="whitespace-pre-line">{template.longDescription}</div>
+          <div className="space-y-2">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {template.longDescription}
+            </ReactMarkdown>
+          </div>
         </section>
       )}
 
