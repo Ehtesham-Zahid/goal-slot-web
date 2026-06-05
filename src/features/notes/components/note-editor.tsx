@@ -12,6 +12,7 @@ import { TiptapEditor } from '@/components/tiptap-editor'
 import { useDeleteNoteMutation, useUpdateNoteMutation } from '../hooks/use-notes'
 import { Note, NOTE_COLORS, NOTE_ICONS } from '../utils/types'
 import { ShareNoteDialog } from './share-note-dialog'
+import { SharedWithPill } from './shared-with-pill'
 import { htmlToMarkdown, slugify } from '@/lib/html-to-markdown'
 
 // Convert old block-based JSON content to HTML
@@ -375,16 +376,19 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
           {/* Share button — owner only. Read-only recipients see no Share
               control because they have no authority to grant access. */}
           {!readOnly && (
-            <button
-              type="button"
-              onClick={() => setShowShare(true)}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-card px-2.5 text-xs font-medium transition-colors hover:bg-muted md:h-9"
-              title="Share this note"
-              aria-label="Share this note"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
+            <>
+              <SharedWithPill noteId={note.id} onClick={() => setShowShare(true)} />
+              <button
+                type="button"
+                onClick={() => setShowShare(true)}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-card px-2.5 text-xs font-medium transition-colors hover:bg-muted md:h-9"
+                title="Share this note"
+                aria-label="Share this note"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+            </>
           )}
 
           {/* Read-only badge for share recipients */}
