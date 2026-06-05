@@ -109,7 +109,7 @@ export default function AdminUsersPage() {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(500)
+  const [pageSize, setPageSize] = useState(20)
   const [totalPages, setTotalPages] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
