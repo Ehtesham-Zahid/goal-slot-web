@@ -7,22 +7,43 @@ import { ReleaseNoteBanner } from '@/features/release-notes/components/release-n
 import { motion } from 'framer-motion'
 
 import { useAuthStore } from '@/lib/store'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 import { useApplyTheme as _useApplyTheme } from '@/lib/use-theme'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
+import { ShortcutsCheatsheet } from '@/components/shortcuts-cheatsheet'
 import { DailyCheckinBanner } from '@/components/daily-checkin-banner'
 import { GoalSlotSpinner } from '@/components/goalslot-logo'
 import { FocusNowBar } from '@/components/focus-now-bar'
 import { TimeEntryBanner } from '@/components/time-entry-banner'
 import { TipsCorner } from '@/components/tips-corner'
+import { useLocalStorage } from '@/hooks/use-local-storage'
+import { ChangelogModal, CHANGELOG } from '@/components/changelog-modal'
+import { Sparkles } from 'lucide-react'
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { isLoading, isAuthenticated, loadUser } = useAuthStore()
+
+  const [changelogOpen, setChangelogOpen] = useState(false)
+  const [lastSeenChangelogAt, setLastSeenChangelogAt, isChangelogInitialized] = useLocalStorage<string | null>(
+    'lastSeenChangelogAt',
+    null,
+  )
+
+  const hasUnseenChangelog = useMemo(() => {
+    if (!isChangelogInitialized) return false
+    if (!lastSeenChangelogAt) return true
+    return CHANGELOG[0].date > lastSeenChangelogAt
+  }, [lastSeenChangelogAt, isChangelogInitialized])
+
+  const handleCloseChangelog = useCallback(() => {
+    setChangelogOpen(false)
+    setLastSeenChangelogAt(CHANGELOG[0].date)
+  }, [setLastSeenChangelogAt])
   // Dark mode wiring intentionally disabled per user request — kept
   // as a comment so the import + hook are obviously load-bearing if
   // we re-enable later. useApplyTheme() was here.
@@ -46,11 +67,46 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // the browser's own "search bookmarks" shortcut doesn't fire. Plain `/`
   // is intentionally NOT bound here — too easy to trigger from inputs.
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      if (e.repeat) return
+
+      const isModifierKey = e.metaKey || e.ctrlKey
+
+      // 1. Modifier-based global shortcuts (work even inside inputs/textareas)
+      if (isModifierKey) {
+        // Command palette (Cmd/Ctrl+K)
+        if (e.key === 'k' || e.key === 'K') {
+          e.preventDefault()
+          setPaletteOpen((v) => !v)
+          return
+        }
+        // Cheatsheet shortcut (Cmd/Ctrl+/)
+        if (e.key === '/') {
+          e.preventDefault()
+          setShortcutsOpen((v) => !v)
+          return
+        }
+      }
+
+      // 2. Input-guard: do not fire character-based keys (like '?') when typing
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable ||
+          target.closest('[contenteditable="true"]'))
+      ) {
+        return
+      }
+
+      // 3. Character-based shortcuts (e.g., '?')
+      const isQuestionMark = (e.key === '?' || (e.key === '/' && e.shiftKey)) && !e.altKey
+      if (isQuestionMark) {
         e.preventDefault()
-        setPaletteOpen((v) => !v)
+        setShortcutsOpen((v) => !v)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -90,10 +146,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar
+        onOpenChangelog={() => setChangelogOpen(true)}
+        hasUnseenChangelog={hasUnseenChangelog}
+      />
       <SidebarInset className="flex flex-col bg-[#fafafa]">
-        <div className="flex h-16 shrink-0 items-center gap-2 border-b border-zinc-200 bg-white px-4 md:hidden">
-          <SidebarTrigger className="h-9 w-9 rounded-md hover:bg-zinc-100 text-zinc-700" />
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 md:hidden">
+          <SidebarTrigger className="h-9 w-9 rounded-md text-zinc-700 hover:bg-zinc-100" />
+          <button
+            onClick={() => setChangelogOpen(true)}
+            className="relative flex h-9 w-9 items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-100"
+            title="What's New"
+            aria-label="What's New changelog"
+          >
+            <Sparkles className="h-5 w-5" />
+            {hasUnseenChangelog && (
+              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#f2cc0d] ring-1 ring-white" />
+            )}
+          </button>
         </div>
         <TimeEntryBanner />
         <FocusNowBar />
@@ -107,6 +177,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         onStartTracking={fireStartTracking}
         onOpenCoach={fireOpenCoach}
         onOpenCheckin={fireOpenCheckin}
+      />
+      <ShortcutsCheatsheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <ChangelogModal
+        isOpen={changelogOpen}
+        onClose={handleCloseChangelog}
+        lastSeenChangelogAt={lastSeenChangelogAt}
       />
       <TipsCorner />
     </SidebarProvider>

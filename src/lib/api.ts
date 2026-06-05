@@ -232,6 +232,7 @@ export const scheduleApi = {
   create: (data: any) => api.post('/schedule', data),
   update: (id: string, data: any) => api.put(`/schedule/${id}`, data),
   delete: (id: string) => api.delete(`/schedule/${id}`),
+  clearAll: () => api.delete<{ deleted: number }>('/schedule'),
 }
 
 // Reports API
@@ -368,6 +369,9 @@ export const usersApi = {
   // Admin: Create internal user
   createInternal: (data: { email: string; password: string; name: string; role?: string }) =>
     api.post('/users/admin/internal', data),
+  // Admin: Bulk-invite many users from a free-form text blob of emails
+  bulkInvite: (data: { text: string; role?: 'USER' | 'ADMIN' | 'SUPER_ADMIN' }) =>
+    api.post('/users/admin/bulk-invite', data),
   // Admin: Grant free Pro access
   grantAccess: (userId: string) => api.post(`/users/admin/grant-access/${userId}`),
   // Admin: Revoke free access

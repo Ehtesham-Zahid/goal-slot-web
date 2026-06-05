@@ -12,7 +12,7 @@ import { WeekSchedule } from '@/features/schedule/utils/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 
-import { cn, getLocalDateString, getLocalTimeString } from '@/lib/utils'
+import { cn, formatDuration, getLocalDateString, getLocalTimeString } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -116,7 +116,7 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
     if (activeBlock.goalId) setGoalId(activeBlock.goalId)
     if (activeBlock.category) setCategory(activeBlock.category)
     if (!title) setTitle(activeBlock.title)
-  }, [isOpen, weeklySchedule, date, startTime, userOverride])
+  }, [isOpen, weeklySchedule, date, startTime, userOverride, title])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -244,7 +244,7 @@ export function ManualEntryModal({ isOpen, onClose, goals, tasks, weeklySchedule
                       : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50',
                   )}
                 >
-                  {min}m
+                  {formatDuration(min)}
                 </button>
               ))}
             </div>

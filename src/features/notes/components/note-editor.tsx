@@ -12,6 +12,7 @@ import { TiptapEditor } from '@/components/tiptap-editor'
 import { useDeleteNoteMutation, useUpdateNoteMutation } from '../hooks/use-notes'
 import { Note, NOTE_COLORS, NOTE_ICONS } from '../utils/types'
 import { ShareNoteDialog } from './share-note-dialog'
+import { htmlToMarkdown, slugify } from '@/lib/html-to-markdown'
 
 // Convert old block-based JSON content to HTML
 function convertOldContentToHtml(content: string): string {
@@ -126,15 +127,22 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const isInitialized = useRef(false)
   const noteIdRef = useRef(note.id)
+  const tiptapRef = useRef<{ commands: { focus: (pos?: 'end' | 'start') => any } } | null>(null)
   const [editorContent, setEditorContent] = useState(() => convertOldContentToHtml(note.content || ''))
 
-  // Update when note changes
+  // Re-seed editor content ONLY when the user switches to a different note
+  // (note.id changes). Do NOT include note.content in the deps: an autosave
+  // round-trip writes back to the cache, which would otherwise trigger this
+  // effect and overwrite whatever the user has typed since the save started
+  // (the "in-flight clobber" bug). The title can update from server fetches
+  // safely because it has its own debounce path.
   useEffect(() => {
     setTitle(note.title)
     setEditorContent(convertOldContentToHtml(note.content || ''))
     isInitialized.current = true
     noteIdRef.current = note.id
-  }, [note.id, note.title, note.content])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id])
 
   // Debounced auto-save for title
   const saveTitle = useCallback(
@@ -153,6 +161,15 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
     const newTitle = e.target.value
     setTitle(newTitle)
     debouncedSaveTitle(newTitle)
+  }
+
+  // Enter in the title moves focus to the body so the user can start
+  // writing without a mouse reach. Notion/Obsidian both do this. Also
+  // catches the rare case where the title gets re-focused by accident.
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return
+    e.preventDefault()
+    tiptapRef.current?.commands.focus('end')
   }
 
   // Handle content change
@@ -261,6 +278,24 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
     setShowMenu(false)
   }
 
+  // Export as Markdown file
+  const handleExportMarkdown = () => {
+    const safeTitle = (title || 'Untitled')
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, '\\n')
+    const frontmatter = `---\ntitle: "${safeTitle}"\ncreated: ${new Date(note.createdAt).toISOString()}\nupdated: ${new Date(note.updatedAt).toISOString()}\n---\n\n`
+    const body = htmlToMarkdown(editorContent)
+    const blob = new Blob([frontmatter + body], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${slugify(title || 'untitled-note')}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+    setShowMenu(false)
+  }
+
   // Get current color styles
   const colorConfig = NOTE_COLORS.find((c) => c.value === note.color) || NOTE_COLORS[0]
 
@@ -321,6 +356,7 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
             type="text"
             value={title}
             onChange={handleTitleChange}
+            onKeyDown={handleTitleKeyDown}
             placeholder="Untitled"
             readOnly={readOnly}
             className="min-w-0 flex-1 bg-transparent text-lg font-bold outline-none placeholder:text-muted-foreground md:text-xl"
@@ -441,6 +477,13 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
                 <Download className="h-4 w-4" />
                 Download as .html
               </button>
+              <button
+                onClick={handleExportMarkdown}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
+              >
+                <Download className="h-4 w-4" />
+                Download as .md
+              </button>
               <hr className="my-1 border-border" />
               <button
                 onClick={handleDelete}
@@ -476,6 +519,9 @@ export function NoteEditor({ note, onDelete, readOnly = false, sharedBy = null }
             editable={!readOnly}
             placeholder={readOnly ? '' : "Start typing... Use '/' for commands"}
             className="h-full"
+            onReady={(ed) => {
+              tiptapRef.current = ed as typeof tiptapRef.current
+            }}
           />
         </div>
       </div>

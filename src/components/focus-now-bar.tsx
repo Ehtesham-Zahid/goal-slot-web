@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-
+import { formatDuration } from '@/lib/utils'
 import { useTimeTrackerData } from '@/features/time-tracker/hooks/use-time-tracker-queries'
 import {
   findScheduleBlockForDateTime,
@@ -91,10 +91,7 @@ export function FocusNowBar() {
   const totalLen = Math.max(1, endMin - startMin)
   const elapsed = Math.max(0, Math.min(totalLen, nowMin - startMin))
   const minutesLeft = Math.max(0, endMin - nowMin)
-  const remaining =
-    minutesLeft >= 60
-      ? `${Math.floor(minutesLeft / 60)}h ${minutesLeft % 60}m left`
-      : `${minutesLeft}m left`
+  const remaining = `${formatDuration(minutesLeft)} left`
   const pct = Math.round((elapsed / totalLen) * 100)
 
   const upcomingLabel = upcoming ? describeUpcoming(now, upcoming.startsAt) : null
@@ -135,7 +132,7 @@ export function FocusNowBar() {
             <Clock className="h-3 w-3 text-[#8a7307]" />
             {fmtShort(activeBlock.startTime)} - {fmtShort(activeBlock.endTime)}
           </span>
-          <span className="inline-flex items-center rounded-md bg-[#f2cc0d] px-2 py-0.5 text-[11px] font-bold text-zinc-900 tabular-nums">
+          <span className="inline-flex items-center rounded-md bg-[#f2cc0d] px-2 py-0.5 text-[11px] font-bold tabular-nums text-zinc-900">
             {remaining}
           </span>
           {upcoming && upcomingLabel && (
@@ -209,7 +206,7 @@ export function FocusNowBar() {
                     key={`${block.id}-${idx}`}
                     className="flex items-center gap-3 px-3 py-2.5"
                   >
-                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-[10px] font-bold text-[#f2cc0d] tabular-nums">
+                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-[10px] font-bold tabular-nums text-[#f2cc0d]">
                       {idx + 1}
                     </span>
                     <div className="min-w-0 flex-1">

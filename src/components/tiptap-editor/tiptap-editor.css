@@ -104,7 +104,8 @@
 .tiptap-editor-content {
   @apply flex-1 overflow-y-auto p-4 outline-none;
   @apply border border-t-0 border-zinc-200 rounded-b-lg bg-transparent;
-  min-height: 0; /* Important for flex children to scroll */
+  min-height: 0;
+  /* Important for flex children to scroll */
 }
 
 /* Without toolbar */
@@ -114,9 +115,19 @@
 
 .tiptap-editor .ProseMirror {
   @apply min-h-full outline-none h-full;
+  caret-color: hsl(var(--foreground))
 }
 
-.tiptap-editor .ProseMirror > * + * {
+.tiptap-editor .ProseMirror p,
+.tiptap-editor .ProseMirror h1,
+.tiptap-editor .ProseMirror h2,
+.tiptap-editor .ProseMirror h3,
+.tiptap-editor .ProseMirror blockquote {
+  min-height: 1.2em;
+}
+
+
+.tiptap-editor .ProseMirror>*+* {
   @apply mt-3;
 }
 
@@ -145,6 +156,37 @@
   @apply leading-relaxed;
 }
 
+/* Notion-style wrapper-block spacing. The Paragraph and Heading
+   extensions emit `<div class="gs-block"><p>...` and `<div class="gs-block"><h*>...`.
+   Spacing lives on the wrapper. The inner editable element carries no
+   spacing CSS, so a paste payload (which lands on the inner element)
+   can never reach the wrapper to defeat the rules. No !important is
+   needed: the wrapper class is owned by our renderHTML and nothing in
+   a paste payload can target it. */
+.tiptap-editor .ProseMirror .gs-block {
+  padding-top: 0.45em;
+  padding-bottom: 0.45em;
+}
+.tiptap-editor .ProseMirror .gs-block:first-child {
+  padding-top: 0;
+}
+.tiptap-editor .ProseMirror .gs-block:last-child {
+  padding-bottom: 0;
+}
+/* Tighter inside list items so a wrapped paragraph + adjacent bullet
+   doesn't look glued, but consecutive bullets stay compact. */
+.tiptap-editor .ProseMirror li .gs-block {
+  padding-top: 0.15em;
+  padding-bottom: 0.15em;
+}
+/* Inner editable element carries no margin (the wrapper owns spacing). */
+.tiptap-editor .ProseMirror .gs-block > p,
+.tiptap-editor .ProseMirror .gs-block > h1,
+.tiptap-editor .ProseMirror .gs-block > h2,
+.tiptap-editor .ProseMirror .gs-block > h3 {
+  margin: 0;
+}
+
 /* Lists */
 .tiptap-editor .ProseMirror ul {
   @apply list-disc pl-6;
@@ -171,20 +213,20 @@
   @apply flex items-start gap-2;
 }
 
-.tiptap-editor .ProseMirror li.task-item > label {
+.tiptap-editor .ProseMirror li.task-item>label {
   @apply flex items-center justify-center shrink-0 mt-1;
 }
 
-.tiptap-editor .ProseMirror li.task-item > label input[type="checkbox"] {
+.tiptap-editor .ProseMirror li.task-item>label input[type="checkbox"] {
   @apply w-4 h-4 rounded border border-zinc-200 cursor-pointer;
   @apply checked:bg-primary checked:border-primary;
 }
 
-.tiptap-editor .ProseMirror li.task-item > div {
+.tiptap-editor .ProseMirror li.task-item>div {
   @apply flex-1;
 }
 
-.tiptap-editor .ProseMirror li.task-item[data-checked="true"] > div {
+.tiptap-editor .ProseMirror li.task-item[data-checked="true"]>div {
   @apply line-through text-muted-foreground;
 }
 
@@ -194,6 +236,31 @@
 .tiptap-editor .ProseMirror ul ol,
 .tiptap-editor .ProseMirror ol ul {
   @apply mt-1;
+}
+
+/* Block indent for paragraphs/headings via IndentExtension. margin-left
+   (not padding-left) so the block's effective width shrinks with the
+   indent — keeps long lines from wrapping into the gutter and visually
+   overlapping the next block. display:block + box-sizing forces a fresh
+   layout context when the indented block sits between two lists. */
+.tiptap-editor .ProseMirror [data-indent] {
+  display: block;
+  box-sizing: border-box;
+}
+.tiptap-editor .ProseMirror [data-indent="1"] { margin-left: 2rem; }
+.tiptap-editor .ProseMirror [data-indent="2"] { margin-left: 4rem; }
+.tiptap-editor .ProseMirror [data-indent="3"] { margin-left: 6rem; }
+.tiptap-editor .ProseMirror [data-indent="4"] { margin-left: 8rem; }
+.tiptap-editor .ProseMirror [data-indent="5"] { margin-left: 10rem; }
+.tiptap-editor .ProseMirror [data-indent="6"] { margin-left: 12rem; }
+
+/* Defensive: a paragraph that lives inside a list item should never
+   carry block indent. Bullets express indent structurally; an inline
+   data-indent (left over from a paste, a legacy note, or an earlier bug
+   that fell through to indentBlock from a list-item Tab) just produces
+   a huge gap between the bullet marker and the text. Force-zero it. */
+.tiptap-editor .ProseMirror li [data-indent] {
+  margin-left: 0;
 }
 
 .tiptap-editor .ProseMirror .task-list .task-list {
@@ -262,9 +329,10 @@
   @apply text-yellow-400;
 }
 
-/* Horizontal Rule */
 .tiptap-editor .ProseMirror hr {
-  @apply border-none h-0.5 bg-border my-6;
+  @apply border-0 border-t-2 border-solid border-muted-foreground my-6;
+  height: 0;
+  transform: translateZ(0);
 }
 
 /* Links */
@@ -383,7 +451,7 @@
 }
 
 .tiptap-editor .ProseMirror .ProseMirror-gapcursor::after {
-  @apply absolute top-0 w-5 h-5 border-t-2 border-black pointer-events-none;
+  @apply absolute top-0 w-5 h-5 border-t-2 border-foreground pointer-events-none;
   content: '';
 }
 
