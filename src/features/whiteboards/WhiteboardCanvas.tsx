@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
+
 import { useQueryClient } from '@tanstack/react-query'
 
 import { updateWhiteboard, updateWhiteboardKeepalive } from '@/lib/api/whiteboards'
@@ -10,12 +11,8 @@ import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 import { WHITEBOARDS_QUERY_KEY } from './hooks/use-whiteboards'
-import {
-  clearWhiteboardDraft,
-  resolveWhiteboardScene,
-  saveWhiteboardDraft,
-} from './whiteboard-draft'
 import type { ExcalidrawScene, Whiteboard } from './types'
+import { clearWhiteboardDraft, resolveWhiteboardScene, saveWhiteboardDraft } from './whiteboard-draft'
 
 const ExcalidrawCanvasInner = dynamic(
   () => import('./excalidraw-canvas-inner').then((mod) => mod.ExcalidrawCanvasInner),
@@ -76,7 +73,10 @@ function toInitialData(initialData: ExcalidrawScene | null) {
   if (!initialData?.elements?.length) {
     return {
       elements: [],
-      appState: { collaborators: new Map() },
+      appState: {
+        ...(initialData?.appState ?? {}),
+        collaborators: new Map(),
+      },
       files: initialData?.files ?? {},
     }
   }
@@ -97,12 +97,7 @@ const UI_OPTIONS = {
   },
 } as const
 
-export function WhiteboardCanvas({
-  whiteboardId,
-  initialData,
-  readOnly,
-  onRegisterFlush,
-}: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({ whiteboardId, initialData, readOnly, onRegisterFlush }: WhiteboardCanvasProps) {
   const isMobile = useIsMobile()
   const pathname = usePathname()
   const forceViewOnly = isMobile && !readOnly
@@ -236,12 +231,12 @@ export function WhiteboardCanvas({
         wasDraggingRef.current = false
         lastSaveRef.current = Date.now()
         void persistScene(scene, whiteboardIdRef.current)
+        // Clear debounce to prevent duplicate POST after drag ends
         if (debounceRef.current) {
           clearTimeout(debounceRef.current)
           debounceRef.current = null
         }
       }
-
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(() => {
         void persistScene(scene, whiteboardIdRef.current)

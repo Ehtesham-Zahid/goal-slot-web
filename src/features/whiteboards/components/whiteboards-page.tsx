@@ -2,21 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { LayoutGrid, PanelLeft, PanelLeftClose, Plus, X } from 'lucide-react'
-
-import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Loading } from '@/components/ui/loading'
-
-import { WhiteboardCanvas, type FlushWhiteboardSave } from '../WhiteboardCanvas'
-import { resolveWhiteboardScene } from '../whiteboard-draft'
-import {
-  useWhiteboardQuery,
-  useSharedWhiteboardsQuery,
-} from '../hooks/use-whiteboards'
+import { useSharedWhiteboardsQuery, useWhiteboardQuery, WHITEBOARDS_QUERY_KEY } from '../hooks/use-whiteboards'
 import { useWhiteboardsSelection } from '../hooks/use-whiteboards-selection'
 import type { SharedWithMeItem } from '../types'
+import { resolveWhiteboardScene } from '../whiteboard-draft'
+import { WhiteboardCanvas, type FlushWhiteboardSave } from '../WhiteboardCanvas'
 import { SharedWhiteboardsPanel } from './shared-whiteboards-panel'
 import { WhiteboardHeader } from './whiteboard-header'
 import { WhiteboardsSidebar } from './whiteboards-sidebar'
@@ -31,13 +27,9 @@ const SIDEBAR_DEFAULT = 288
 
 export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = {}) {
   const isMobile = useIsMobile()
-  const {
-    selectedWhiteboard,
-    selectWhiteboard,
-    createWhiteboard,
-    isCreating,
-    deleteSelectedWhiteboard,
-  } = useWhiteboardsSelection({ initialWhiteboardId })
+  const { selectedWhiteboard, selectWhiteboard, createWhiteboard, isCreating, deleteSelectedWhiteboard } =
+    useWhiteboardsSelection({ initialWhiteboardId })
+  const queryClient = useQueryClient()
 
   const [selectedShared, setSelectedShared] = useState<SharedWithMeItem | null>(null)
   const [focusTitleId, setFocusTitleId] = useState<string | null>(null)
@@ -47,7 +39,7 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
 
   const { data: sharedList = [] } = useSharedWhiteboardsQuery()
 
-  const ownedWhiteboardId = selectedShared ? null : selectedWhiteboard?.id ?? null
+  const ownedWhiteboardId = selectedShared ? null : (selectedWhiteboard?.id ?? null)
   const ownedFetch = useWhiteboardQuery(ownedWhiteboardId)
   const flushCanvasSaveRef = useRef<FlushWhiteboardSave | null>(null)
 
@@ -111,6 +103,10 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
     await flushCanvasSaveRef.current?.()
     setSelectedShared(null)
     selectWhiteboard(wb)
+    // Force refetch so we get latest saved content
+    await queryClient.invalidateQueries({
+      queryKey: [...WHITEBOARDS_QUERY_KEY, wb.id],
+    })
   }
 
   const handleSelectShared = async (summary: SharedWithMeItem) => {
@@ -138,7 +134,7 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
   const renderSidebarColumn = (className?: string) => (
     <div className={cn('flex h-full flex-col', className)}>
       <WhiteboardsSidebar
-        selectedWhiteboardId={selectedShared ? null : selectedWhiteboard?.id ?? null}
+        selectedWhiteboardId={selectedShared ? null : (selectedWhiteboard?.id ?? null)}
         onSelectWhiteboard={handleSelectOwned}
         onAfterDeleteSelected={deleteSelectedWhiteboard}
         focusTitleId={focusTitleId}
@@ -158,11 +154,7 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
     if (sharedWhiteboard) {
       mainContent = (
         <div key={`shared-${selectedShared.shareId}`} className="flex h-full flex-col">
-          <WhiteboardHeader
-            whiteboard={sharedWhiteboard}
-            readOnly={sharedReadOnly}
-            sharedBy={selectedShared.owner}
-          />
+          <WhiteboardHeader whiteboard={sharedWhiteboard} readOnly={sharedReadOnly} sharedBy={selectedShared.owner} />
           <div className="min-h-0 flex-1">
             <WhiteboardCanvas
               key={sharedWhiteboard.id}
@@ -194,10 +186,7 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
     }
   } else if (selectedWhiteboard) {
     const displayWhiteboard = ownedFetch.data?.whiteboard ?? selectedWhiteboard
-    const resolvedContent = resolveWhiteboardScene(
-      displayWhiteboard.id,
-      displayWhiteboard.content,
-    )
+    const resolvedContent = resolveWhiteboardScene(displayWhiteboard.id, displayWhiteboard.content)
     const hasElements = (resolvedContent?.elements?.length ?? 0) > 0
     const waitingForServer =
       !!ownedWhiteboardId &&
@@ -207,10 +196,7 @@ export function WhiteboardsPage({ initialWhiteboardId }: WhiteboardsPageProps = 
 
     mainContent = (
       <div key={selectedWhiteboard.id} className="flex h-full flex-col">
-        <WhiteboardHeader
-          whiteboard={displayWhiteboard}
-          autoFocusTitle={focusTitleId === displayWhiteboard.id}
-        />
+        <WhiteboardHeader whiteboard={displayWhiteboard} autoFocusTitle={focusTitleId === displayWhiteboard.id} />
         <div className="min-h-0 flex-1">
           {waitingForServer ? (
             <div className="flex h-full items-center justify-center">
