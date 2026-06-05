@@ -109,6 +109,7 @@ export default function AdminUsersPage() {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(500)
   const [totalPages, setTotalPages] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
@@ -150,7 +151,7 @@ export default function AdminUsersPage() {
   const loadUsers = async () => {
     setIsLoading(true)
     try {
-      const response = await usersApi.listUsers(currentPage, 20, debouncedSearch || undefined)
+      const response = await usersApi.listUsers(currentPage, pageSize, debouncedSearch || undefined)
       setUsers(response.data.users || response.data)
       setTotalPages(response.data.pagination?.totalPages || 1)
       setTotalUsers(response.data.pagination?.total || 0)
@@ -181,7 +182,7 @@ export default function AdminUsersPage() {
     loadUsers()
     loadStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, debouncedSearch])
+  }, [currentPage, debouncedSearch, pageSize])
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -703,27 +704,48 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-zinc-200 bg-gray-50 px-4 py-3">
+        {/* Pagination + page size */}
+        {!isLoading && users.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-gray-50 px-4 py-3">
             <p className="text-sm font-medium">
-              Page {currentPage} of {totalPages} ({totalUsers} users)
+              Page {currentPage} of {totalPages} ({totalUsers} users · showing {users.length})
             </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="border border-zinc-200 p-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="border border-zinc-200 p-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase">
+                Per page
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value))
+                    setCurrentPage(1)
+                    setSelectedUsers([])
+                  }}
+                  className="border border-zinc-200 bg-white px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={250}>250</option>
+                  <option value={500}>500</option>
+                </select>
+              </label>
+              {totalPages > 1 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="border border-zinc-200 p-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="border border-zinc-200 p-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
