@@ -9,7 +9,7 @@ import { ScheduleBlock } from '@/features/schedule/utils/types'
 import { useDraggable } from '@dnd-kit/core'
 import { useIsMutating } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Pencil, Target, X } from 'lucide-react'
+import { Lock, Pencil, Target, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 import { Loading } from '@/components/ui/loading'
@@ -117,11 +117,17 @@ export function DraggableBlock({ block, top, height, isActiveDrag, onEdit, onVie
         <div ref={headerRef} className="relative flex shrink-0 flex-col">
           <div className="flex items-start justify-between">
             <div
-              className={`truncate font-bold uppercase leading-tight ${
+              className={`flex min-w-0 items-center gap-1 truncate font-bold uppercase leading-tight ${
                 isTiny ? 'text-[10px]' : 'text-xs'
               }`}
             >
-              {block.title}
+              {block.isPrivate && (
+                <Lock
+                  className={isTiny ? 'h-2.5 w-2.5 shrink-0' : 'h-3 w-3 shrink-0'}
+                  aria-label="Private block, hidden from anyone you share your schedule with"
+                />
+              )}
+              <span className="truncate">{block.title}</span>
             </div>
             {/* Desktop: Actions overlay on hover */}
             <div className="absolute right-0 top-0 hidden opacity-0 transition-opacity group-hover:opacity-100 md:flex">
