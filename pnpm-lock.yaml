@@ -72,14 +72,14 @@ importers:
         specifier: ^5.101.0
         version: 5.101.0
       '@tanstack/react-query':
-        specifier: ^5.90.12
-        version: 5.90.18(react@19.2.1)
+        specifier: ^5.101.0
+        version: 5.101.0(react@19.2.1)
       '@tanstack/react-query-devtools':
-        specifier: ^5.91.1
-        version: 5.91.2(@tanstack/react-query@5.90.18(react@19.2.1))(react@19.2.1)
+        specifier: ^5.101.0
+        version: 5.101.0(@tanstack/react-query@5.101.0(react@19.2.1))(react@19.2.1)
       '@tanstack/react-query-persist-client':
         specifier: ^5.101.0
-        version: 5.101.0(@tanstack/react-query@5.90.18(react@19.2.1))(react@19.2.1)
+        version: 5.101.0(@tanstack/react-query@5.101.0(react@19.2.1))(react@19.2.1)
       '@tanstack/react-virtual':
         specifier: ^3.13.18
         version: 3.13.18(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -1756,19 +1756,16 @@ packages:
   '@tanstack/query-core@5.101.0':
     resolution: {integrity: sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow==}
 
-  '@tanstack/query-core@5.90.18':
-    resolution: {integrity: sha512-rbGx6bHgPNVzutP7BEr+53UPKohpckqlMAad+To9UxTbeaQ+kC/1SDRj+QzkwbQ7qhLT/1IKp34yS6thda6fzA==}
-
-  '@tanstack/query-devtools@5.92.0':
-    resolution: {integrity: sha512-N8D27KH1vEpVacvZgJL27xC6yPFUy0Zkezn5gnB3L3gRCxlDeSuiya7fKge8Y91uMTnC8aSxBQhcK6ocY7alpQ==}
+  '@tanstack/query-devtools@5.101.0':
+    resolution: {integrity: sha512-MVqw17k08RQtGGLEL654+dX/btbX9p/8WjkznO//zusLTMaObxi3Q+MoFwGVkC9K3tqjn8qrrNhJevXx4fJTeQ==}
 
   '@tanstack/query-persist-client-core@5.101.0':
     resolution: {integrity: sha512-LH99WepGVLwlLfuOcQcPK7f3Xg/Gf+xlMMIj9xWu/8oQ3egnDzjr+a4HvEmi6PGob5SmGXvmDKZaH5+In9dzjw==}
 
-  '@tanstack/react-query-devtools@5.91.2':
-    resolution: {integrity: sha512-ZJ1503ay5fFeEYFUdo7LMNFzZryi6B0Cacrgr2h1JRkvikK1khgIq6Nq2EcblqEdIlgB/r7XDW8f8DQ89RuUgg==}
+  '@tanstack/react-query-devtools@5.101.0':
+    resolution: {integrity: sha512-cpZA0+WqKXwrwMfiWZEGGF6QrIWVQFbhBtxqDF5sQsAfrFf47HIE6fiPbQU3wyAUEN2+7UNqLCQe7oG6m3f93w==}
     peerDependencies:
-      '@tanstack/react-query': ^5.90.14
+      '@tanstack/react-query': ^5.101.0
       react: ^18 || ^19
 
   '@tanstack/react-query-persist-client@5.101.0':
@@ -1777,8 +1774,8 @@ packages:
       '@tanstack/react-query': ^5.101.0
       react: ^18 || ^19
 
-  '@tanstack/react-query@5.90.18':
-    resolution: {integrity: sha512-KqNZX0C5IFz4639zR1ilnQ288tQdJrMNLtzmlzyJ14xauBkhtLEy3mPU/V4KiHsr41eL1ILZbDP36TB12lYfCQ==}
+  '@tanstack/react-query@5.101.0':
+    resolution: {integrity: sha512-rLlJXSpkqfizLWgkR5+eLeIk0MvTx/meEIR7LRjxic+qxiQP8zVjq7BqQkiCMNLQBlLfuOLqqr6KO5GtrDlmSg==}
     peerDependencies:
       react: ^18 || ^19
 
@@ -6862,29 +6859,27 @@ snapshots:
 
   '@tanstack/query-core@5.101.0': {}
 
-  '@tanstack/query-core@5.90.18': {}
-
-  '@tanstack/query-devtools@5.92.0': {}
+  '@tanstack/query-devtools@5.101.0': {}
 
   '@tanstack/query-persist-client-core@5.101.0':
     dependencies:
       '@tanstack/query-core': 5.101.0
 
-  '@tanstack/react-query-devtools@5.91.2(@tanstack/react-query@5.90.18(react@19.2.1))(react@19.2.1)':
+  '@tanstack/react-query-devtools@5.101.0(@tanstack/react-query@5.101.0(react@19.2.1))(react@19.2.1)':
     dependencies:
-      '@tanstack/query-devtools': 5.92.0
-      '@tanstack/react-query': 5.90.18(react@19.2.1)
+      '@tanstack/query-devtools': 5.101.0
+      '@tanstack/react-query': 5.101.0(react@19.2.1)
       react: 19.2.1
 
-  '@tanstack/react-query-persist-client@5.101.0(@tanstack/react-query@5.90.18(react@19.2.1))(react@19.2.1)':
+  '@tanstack/react-query-persist-client@5.101.0(@tanstack/react-query@5.101.0(react@19.2.1))(react@19.2.1)':
     dependencies:
       '@tanstack/query-persist-client-core': 5.101.0
-      '@tanstack/react-query': 5.90.18(react@19.2.1)
+      '@tanstack/react-query': 5.101.0(react@19.2.1)
       react: 19.2.1
 
-  '@tanstack/react-query@5.90.18(react@19.2.1)':
+  '@tanstack/react-query@5.101.0(react@19.2.1)':
     dependencies:
-      '@tanstack/query-core': 5.90.18
+      '@tanstack/query-core': 5.101.0
       react: 19.2.1
 
   '@tanstack/react-virtual@3.13.18(react-dom@19.2.1(react@19.2.1))(react@19.2.1)':
