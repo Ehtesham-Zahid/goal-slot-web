@@ -28,6 +28,7 @@ const insertBlock = (schedule: WeekSchedule, block: ScheduleCreatePayload): Week
       isRecurring: true,
       seriesId: block.seriesId || block.id || genId(),
       goalId: block.goalId,
+      isPrivate: block.isPrivate ?? false,
     },
   ].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
   return next
