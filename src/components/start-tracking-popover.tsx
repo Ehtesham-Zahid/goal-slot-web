@@ -302,13 +302,13 @@ export function StartTrackingPopover({ open, onClose }: StartTrackingPopoverProp
     setIsCreating(true)
     try {
       const goalId = selectedGoalId === NO_GOAL ? undefined : selectedGoalId
-      const created = await createTaskMutation.mutateAsync({
+      const created = (await createTaskMutation.mutateAsync({
         title: trimmedQuery,
         goalId,
         scheduleBlockId: activeBlock?.id || undefined,
-      } as any)
+      } as any)) as { id: string; title: string; category?: string; goalId?: string }
       start(
-        created.title,
+        created.title ?? trimmedQuery,
         created.id,
         created.category || '',
         created.goalId || '',
