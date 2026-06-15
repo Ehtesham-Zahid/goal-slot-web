@@ -232,7 +232,7 @@ function SignupForm() {
                 <button
                   type="submit"
                   disabled={sendOTPMutation.isPending || checkEmailMutation.isPending}
-                  className="flex inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {sendOTPMutation.isPending || checkEmailMutation.isPending ? (
                     <Loading size="sm" className="h-5 w-5" />
@@ -242,6 +242,10 @@ function SignupForm() {
                     </>
                   )}
                 </button>
+                {/* "Continue with Google" hidden until the backend Google
+                    OAuth strategy is re-shipped (api PR #52 was reverted).
+                    Restore when the backend lands with conditional
+                    registration + env vars on the VPS. */}
               </form>
             </>
           ) : (
@@ -295,7 +299,7 @@ function SignupForm() {
                 <button
                   type="submit"
                   disabled={registerMutation.isPending || otp.length !== 6}
-                  className="flex inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {registerMutation.isPending ? (
                     <Loading size="sm" className="h-5 w-5" />

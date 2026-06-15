@@ -109,7 +109,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="flex inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
             >
               {isLoading ? (
                 <Loading size="sm" className="h-5 w-5" />
@@ -119,6 +119,11 @@ function LoginForm() {
                 </>
               )}
             </button>
+            {/* "Continue with Google" hidden until the backend Google OAuth
+                strategy is re-shipped (api PR #52 was reverted because it
+                crashed the API on missing env vars). When the backend lands
+                with conditional registration + env vars on the VPS, restore
+                this block. */}
           </form>
 
           <p className="mt-6 text-center font-mono text-sm">
